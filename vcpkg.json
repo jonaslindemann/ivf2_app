@@ -1,0 +1,24 @@
+{
+    "name": "ivf-app",
+    "version": "0.1.0",
+    "dependencies": [
+      "zlib",
+      "glfw3",
+      "libjpeg-turbo",
+      "libpng",
+      "glew",
+      "opengl",
+      {
+        "name": "imgui",
+        "features": [
+          "glfw-binding",
+          "docking-experimental",
+          "opengl2-binding",
+          "opengl3-binding"
+        ]
+      },
+      "stb",
+      "freetype",
+      "assimp"
+    ]
+  }
