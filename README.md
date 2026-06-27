@@ -1,60 +1,72 @@
-# Ivf2 template application
+# ivf2 standalone application
 
-This is a template application for the Ivf2 framework. It is a simple web application that demonstrates the use of the Ivf2 framework and its features.
+This repository is a standalone example application for the `ivf2` framework. It
+expects the `ivf2` source tree and prebuilt libraries to be available next to
+this directory:
 
-## Configure and build the application (Windows)
+```text
+parent/
+  ivf2/
+  ivf2_app/
+```
 
-To configure the application you need to run CMake with the following options:
+The default CMake presets set `IVF2_ROOT` to `../ivf2`. The app adds that source
+tree as an include/library dependency and links against a local `ivf2::ivf2`
+interface target. Release builds use `build-release`, and debug builds use
+`build-debug`. vcpkg runs in manifest mode using `vcpkg.json`, with both build
+directories sharing `vcpkg_installed`. The prebuilt ivf2 libraries must exist in:
+
+```text
+ivf2/lib/Release
+ivf2/lib/Debug
+```
+
+## Configure and build on Windows
 
 ```bash
 cmake --preset windows
+cmake --build --preset release
 ```
 
-To configure a debug build, use the following command:
+For a debug build:
 
 ```bash
 cmake --preset windows-debug
-```
-
-To build a release version of the application, use the following command:
-
-```bash
-cmake --build --preset release
-```
-
-To build a debug version of the application, use the following command:
-
-```bash
 cmake --build --preset debug
 ```
 
-There is also a windows batch file that can be used to build the application. To use it, run the following command:
+You can also use the helper script:
 
 ```bash
-build_windows.bat [debug|release] [path\to\ivf2]
+build_windows.cmd [debug|release] [path\to\ivf2]
 ```
 
-This will build the application in the specified mode (debug or release) and use the specified path to the Ivf2 framework. If no path is specified, it will use the default path which is `..\ivf2`.
+If no ivf2 path is specified, the script uses `..\ivf2`.
 
-## Configure and build the application (Linux)
-
-To configure the application you need to run CMake with the following options:
+## Configure and build on Linux
 
 ```bash
 cmake --preset linux
+cmake --build --preset linux-release
 ```
-To configure a debug build, use the following command:
+
+For a debug build:
 
 ```bash
 cmake --preset linux-debug
+cmake --build --preset linux-debug
 ```
-To build a release version of the application, use the following command:
+
+## Configure and build on macOS
 
 ```bash
-cmake --build --preset release
+cmake --preset macos
+cmake --build --preset macos-release
 ```
-To build a debug version of the application, use the following command:
+
+For a debug build:
 
 ```bash
-cmake --build --preset debug
+cmake --preset macos-debug
+cmake --build --preset macos-debug
 ```

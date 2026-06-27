@@ -4,54 +4,72 @@
     {
       "name": "windows",
       "toolchainFile": "e:/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build-release",
       "cacheVariables": {
         "IVF2_ROOT": "${sourceDir}/../ivf2",
+        "VCPKG_MANIFEST_MODE": "ON",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
       "name": "windows-debug",
       "toolchainFile": "e:/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build-debug",
       "cacheVariables": {
         "IVF2_ROOT": "${sourceDir}/../ivf2",
+        "VCPKG_MANIFEST_MODE": "ON",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "linux",
       "toolchainFile": "/home/bmjl/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build-release",
       "cacheVariables": {
         "IVF2_ROOT": "${sourceDir}/../ivf2",
+        "VCPKG_MANIFEST_MODE": "ON",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
       "name": "linux-debug",
       "toolchainFile": "/home/bmjl/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build-debug",
       "cacheVariables": {
         "IVF2_ROOT": "${sourceDir}/../ivf2",
+        "VCPKG_MANIFEST_MODE": "ON",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "macos",
       "toolchainFile": "/Users/lindemann/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build-release",
       "cacheVariables": {
         "IVF2_ROOT": "${sourceDir}/../ivf2",
+        "VCPKG_MANIFEST_MODE": "ON",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
       "name": "macos-debug",
       "toolchainFile": "/Users/lindemann/vcpkg/scripts/buildsystems/vcpkg.cmake",
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build-debug",
       "cacheVariables": {
         "IVF2_ROOT": "${sourceDir}/../ivf2",
+        "VCPKG_MANIFEST_MODE": "ON",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg_installed",
         "CMAKE_BUILD_TYPE": "Debug"
       }
     }

@@ -33,45 +33,24 @@ REM Validate IVF2 path
 if not exist "%IVF2_PATH%" (
     echo ERROR: IVF2 directory does not exist at: %IVF2_PATH%
     echo Please specify the correct path as the second argument.
-    echo Example: build_windows.bat release path\to\ivf2
+    echo Example: build_windows.cmd release path\to\ivf2
     exit /b 1
 )
 
-if not exist "%IVF2_PATH%\include" (
-    echo ERROR: IVF2 include directory not found at: %IVF2_PATH%\include
+if not exist "%IVF2_PATH%\CMakeLists.txt" (
+    echo ERROR: IVF2 CMakeLists.txt not found at: %IVF2_PATH%\CMakeLists.txt
     exit /b 1
 )
 
-if not exist "%IVF2_PATH%\lib" (
-    echo ERROR: IVF2 lib directory not found at: %IVF2_PATH%\lib
+if not exist "%IVF2_PATH%\lib\Release" (
+    echo ERROR: IVF2 release library directory not found at: %IVF2_PATH%\lib\Release
     exit /b 1
 )
 
-REM Check for libraries based on build type
-set LIB_SUBDIR=Release
-if /i "%BUILD_TYPE%"=="debug" (
-    set EXPECTED_LIBRARIES=ivfd.lib ivfuid.lib generatord.lib gladd.lib
-    set LIB_SUBDIR=Debug
-) else (
-    set EXPECTED_LIBRARIES=ivf.lib ivfui.lib generator.lib glad.lib
-    set LIB_SUBDIR=Release
+if not exist "%IVF2_PATH%\lib\Debug" (
+    echo ERROR: IVF2 debug library directory not found at: %IVF2_PATH%\lib\Debug
+    exit /b 1
 )
-
-set MISSING_LIBRARIES=0
-for %%L in (%EXPECTED_LIBRARIES%) do (
-    if not exist "%IVF2_PATH%\lib\%LIB_SUBDIR%\%%L" (
-        echo WARNING: Required library not found: %IVF2_PATH%\lib\%LIB_SUBDIR%\%%L
-        set /a MISSING_LIBRARIES+=1
-    )
-)
-
-if %MISSING_LIBRARIES% GTR 0 (
-    echo WARNING: %MISSING_LIBRARIES% required libraries not found!
-    echo Make sure you have built the ivf2 library with the correct configuration.
-)
-
-REM Create build directory if it doesn't exist
-if not exist build mkdir build
 
 REM Set build preset based on build type
 set CONFIG_PRESET=windows

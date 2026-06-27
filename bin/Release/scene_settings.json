@@ -1,0 +1,55 @@
+{
+    "Flow Field": {
+        "audioEndSizeBoost": 0.2150000035762787,
+        "audioImpact": 0.44200000166893005,
+        "audioSensitivity": 1.5,
+        "audioStartSizeBoost": 0.6830000281333923,
+        "autoCamera": true,
+        "baseEmitRate": 501.7919921875,
+        "cameraHeight": 4.480000019073486,
+        "cameraOrbitSpeed": 0.1940000057220459,
+        "cameraRadius": 17.09600067138672,
+        "cameraUndulation": 1.2760000228881836,
+        "cameraUndulationSpeed": 0.18000000715255737,
+        "depthFog": true,
+        "endColor": [
+            1.0,
+            0.0,
+            0.9306931495666504,
+            0.0
+        ],
+        "endColorAudioBoost": [
+            0.5,
+            0.10000000149011612,
+            0.25,
+            0.0
+        ],
+        "endSize": 1.1829999685287476,
+        "fogColor": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "fogFar": 24.777999877929688,
+        "fogNear": 4.043000221252441,
+        "octaves": 4,
+        "pathCamera": true,
+        "pathSpeed": 0.014999999664723873,
+        "scale": 0.14399999380111694,
+        "startColor": [
+            0.0,
+            0.35643577575683594,
+            1.0,
+            0.30000001192092896
+        ],
+        "startColorAudioBoost": [
+            0.30000001192092896,
+            0.3499999940395355,
+            0.6000000238418579,
+            0.3499999940395355
+        ],
+        "startSize": 0.2460000067949295,
+        "strength": 1.128999948501587,
+        "timeScale": 0.0729999989271164
+    }
+}
