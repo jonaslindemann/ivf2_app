@@ -5,26 +5,26 @@
         "audioSensitivity": 1.5,
         "audioStartSizeBoost": 0.6830000281333923,
         "autoCamera": true,
-        "baseEmitRate": 501.7919921875,
+        "baseEmitRate": 641.9240112304688,
         "cameraHeight": 4.480000019073486,
         "cameraOrbitSpeed": 0.1940000057220459,
-        "cameraRadius": 17.09600067138672,
+        "cameraRadius": 19.075000762939453,
         "cameraUndulation": 1.2760000228881836,
         "cameraUndulationSpeed": 0.18000000715255737,
-        "depthFog": true,
+        "depthFog": false,
         "endColor": [
-            1.0,
+            0.5808581113815308,
             0.0,
-            0.9306931495666504,
+            0.0,
             0.0
         ],
         "endColorAudioBoost": [
-            0.5,
-            0.10000000149011612,
-            0.25,
-            0.0
+            0.501960813999176,
+            0.10196078568696976,
+            0.250980406999588,
+            0.47843137383461
         ],
-        "endSize": 1.1829999685287476,
+        "endSize": 0.9079999923706055,
         "fogColor": [
             0.0,
             0.0,
@@ -33,12 +33,12 @@
         "fogFar": 24.777999877929688,
         "fogNear": 4.043000221252441,
         "octaves": 4,
-        "pathCamera": true,
+        "pathCamera": false,
         "pathSpeed": 0.014999999664723873,
         "scale": 0.14399999380111694,
         "startColor": [
             0.0,
-            0.35643577575683594,
+            0.019802093505859375,
             1.0,
             0.30000001192092896
         ],
@@ -48,8 +48,58 @@
             0.6000000238418579,
             0.3499999940395355
         ],
-        "startSize": 0.2460000067949295,
+        "startSize": 0.17499999701976776,
         "strength": 1.128999948501587,
         "timeScale": 0.0729999989271164
+    },
+    "Pulse Corridor": {
+        "audioEndSizeBoost": 0.0,
+        "audioImpact": 0.45399999618530273,
+        "audioSensitivity": 1.2330000400543213,
+        "audioStartSizeBoost": 0.5770000219345093,
+        "cameraRollHeight": 0.8999999761581421,
+        "cameraSpeed": 7.0,
+        "cameraSway": 2.3519999980926514,
+        "depthFog": false,
+        "emitRate": 4319.14892578125,
+        "endColor": [
+            0.5973597764968872,
+            0.0,
+            0.05914458632469177,
+            0.0
+        ],
+        "endColorAudioBoost": [
+            0.05000000074505806,
+            0.3499999940395355,
+            0.699999988079071,
+            0.0
+        ],
+        "endSize": 1.1369999647140503,
+        "fogColor": [
+            0.0,
+            0.0,
+            0.0
+        ],
+        "fogFar": 120.0,
+        "fogNear": 2.0,
+        "forwardSpeed": 7.2220001220703125,
+        "pulseStrength": 0.0,
+        "ringSpacing": 3.4240000247955322,
+        "startColor": [
+            0.1499999761581421,
+            0.5707920789718628,
+            1.0,
+            0.44999998807907104
+        ],
+        "startColorAudioBoost": [
+            0.6499999761581421,
+            0.25,
+            0.0,
+            0.25
+        ],
+        "startSize": 0.19200000166893005,
+        "tunnelLength": 60.2599983215332,
+        "tunnelRadius": 5.078999996185303,
+        "twistAmount": 1.0750000476837158
     }
 }

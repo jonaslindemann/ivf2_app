@@ -13,6 +13,7 @@
 
 #include "audio_player.h"
 #include "particle_scene.h"
+#include "tunnel_scene.h"
 
 #include <ivf/gl.h>
 #include <ivf/nodes.h>
@@ -37,7 +38,12 @@
 #include <ivf/color_grading_effect.h>
 #include <ivf/night_vision_effect.h>
 #include <ivf/blur_effect.h>
+#include <ivf/motion_blur_effect.h>
+#include <ivf/feedback_effect.h>
+#include <ivf/halftone_effect.h>
+#include <ivf/fade_effect.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -51,6 +57,9 @@ private:
     SceneTimelinePtr m_timeline;
     SceneTimelinePlayerPtr m_timelinePlayer;
     std::shared_ptr<ParticleTimelineScene> m_particleScene;
+    std::shared_ptr<TunnelTimelineScene> m_tunnelScene;
+    FadeEffectPtr m_fadeEffect;
+    double m_fadeDuration{3.0}; // seconds of fade-in and fade-out per scene
     AudioPlayer m_audioPlayer;
     std::filesystem::path m_settingsPath{"scene_settings.json"};
 
@@ -185,7 +194,24 @@ public:
         nightVisionEffect->setPhosphorColor(glm::vec3(0.1f, 1.0f, 0.1f));
         nightVisionEffect->load();
 
+		// Motion blur effect
+		
+        auto motionBlurEffect = MotionBlurEffect::create();
+		motionBlurEffect->load();
+
+		// Feedback effect
+
+		auto feedbackEffect = FeedbackEffect::create();
+		feedbackEffect->setFeedbackAmount(0.9f);
+		feedbackEffect->load();
+
+		// Halftone effect
+
+		auto halftoneEffect = HalftoneEffect::create();
+		halftoneEffect->load();
+
 		m_particleScene = ParticleTimelineScene::create();
+        m_tunnelScene = TunnelTimelineScene::create();
 
 		// Add effects to the timeline scene (SceneTimelinePlayer will apply scene effects)
 
@@ -194,27 +220,53 @@ public:
 		m_particleScene->effect(chromaticEffect);       //  2
 		m_particleScene->effect(ditheringEffect);       //  3
 		m_particleScene->effect(bloomEffect);           //  4
-		m_particleScene->effect(pixelationEffect);      //  5
-		m_particleScene->effect(vignetteEffect);        //  6
 		m_particleScene->effect(filmgrainEffect);       //  7
-		m_particleScene->effect(waveDistortionEffect);  //  8
-		m_particleScene->effect(swirlEffect);           //  9
-		m_particleScene->effect(kaleidoscopeEffect);    // 10
 		m_particleScene->effect(glitchEffect);          // 11
 		m_particleScene->effect(scanlineEffect);        // 12
 		m_particleScene->effect(posterizeEffect);       // 13
 		m_particleScene->effect(colorGradingEffect);    // 14
-		m_particleScene->effect(nightVisionEffect);     // 15
-
+        m_particleScene->effect(motionBlurEffect);      // 16
+		m_particleScene->effect(feedbackEffect);        // 17
+		m_particleScene->effect(halftoneEffect);         // 18
 		// Disable all effects by default
 
 		for (int i = 0; i < static_cast<int>(m_particleScene->effects().size()); ++i)
 			m_particleScene->effects()[static_cast<size_t>(i)]->program()->setEnabled(false);
 
+        m_tunnelScene->effect(blurEffect);            //  0
+        m_tunnelScene->effect(tintEffect);            //  1
+        m_tunnelScene->effect(chromaticEffect);       //  2
+        m_tunnelScene->effect(ditheringEffect);       //  3
+        m_tunnelScene->effect(bloomEffect);           //  4
+        m_tunnelScene->effect(filmgrainEffect);       //  7
+        m_tunnelScene->effect(glitchEffect);          // 11
+        m_tunnelScene->effect(scanlineEffect);        // 12
+        m_tunnelScene->effect(posterizeEffect);       // 13
+        m_tunnelScene->effect(colorGradingEffect);    // 14
+        m_tunnelScene->effect(motionBlurEffect);      // 16
+        m_tunnelScene->effect(feedbackEffect);        // 17
+        m_tunnelScene->effect(halftoneEffect);         // 18
+        // Disable all effects by default
+
+        for (int i = 0; i < static_cast<int>(m_tunnelScene->effects().size()); ++i)
+            m_tunnelScene->effects()[static_cast<size_t>(i)]->program()->setEnabled(false);
+
+        // Fade transition effect (dip-to-black). Added last so it is applied on top of
+        // every other effect, and kept enabled so scene fade-in / fade-out is always active.
+
+        m_fadeEffect = FadeEffect::create();
+        m_fadeEffect->setFadeColor(glm::vec3(0.0f, 0.0f, 0.0f));
+        m_fadeEffect->setFadeAmount(0.0f);
+        m_fadeEffect->load();
+
+        m_particleScene->effect(m_fadeEffect);
+        m_tunnelScene->effect(m_fadeEffect);
+
         m_timeline = SceneTimeline::create();
         m_timeline->setLoop(true);
         m_timeline->addScene(m_particleScene->name(), m_particleScene->duration()) = *m_particleScene;
-        m_timeline->play();
+        m_timeline->addScene(m_tunnelScene->name(), m_tunnelScene->duration()) = *m_tunnelScene;
+        m_timeline->pause();
 
         m_timelinePlayer = SceneTimelinePlayer::create(this, m_timeline);
         m_timelinePlayer->update(0.0);
@@ -225,6 +277,7 @@ public:
         addUiWindow(TimeControlPanel::create());
 
         TimeController::instance()->setScale(1.0f);
+        setDemoPlaying(false);
 
         this->showEffectInspector();
 
@@ -237,25 +290,33 @@ public:
 
         if (m_particleScene)
             m_particleScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
+        if (m_tunnelScene)
+            m_tunnelScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
 
         if (m_timelinePlayer)
             m_timelinePlayer->update(dt);
 
-        if (m_particleScene)
+        updateSceneFade();
+
+        if (m_timeline && m_timeline->activeSceneIndex() == 1 && m_tunnelScene)
+            applyCamera(m_tunnelScene->camera());
+        else if (m_particleScene)
             applyCamera(m_particleScene->camera());
     }
 
     void onKey(int key, int /*sc*/, int action, int /*mods*/) override
     {
-        if (action == GLFW_PRESS && key == GLFW_KEY_SPACE) {
-            TimeController::instance()->togglePause();
-            m_audioPlayer.setPaused(TimeController::instance()->isPaused());
-        }
+        if (action == GLFW_PRESS && key == GLFW_KEY_SPACE)
+            setDemoPlaying(!isDemoPlaying());
     }
 
     void onDrawUi() override
     {
-        if (m_particleScene)
+        drawSceneSwitcher();
+
+        if (m_timeline && m_timeline->activeSceneIndex() == 1 && m_tunnelScene)
+            m_tunnelScene->drawControls();
+        else if (m_particleScene)
             m_particleScene->drawControls();
 
         m_audioPlayer.drawControls();
@@ -266,9 +327,108 @@ public:
 		saveSceneSettings();
 		if (m_audioPlayer.isPlaying())
 			m_audioPlayer.setPaused(true);
-	}
+    }
 
 private:
+    void drawSceneSwitcher()
+    {
+        if (!m_timeline || m_timeline->sceneCount() == 0)
+            return;
+
+        ImGui::SetNextWindowSize({260, 0}, ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos({10, 560}, ImGuiCond_FirstUseEver);
+        ImGui::Begin("Scenes");
+
+        const size_t activeIndex = m_timeline->activeSceneIndex();
+        const auto* activeScene = m_timeline->activeScene();
+        const char* activeName = activeScene ? activeScene->name().c_str() : "None";
+        const bool playing = isDemoPlaying();
+
+        if (ImGui::Button(playing ? "Pause demo" : "Play demo"))
+            setDemoPlaying(!playing);
+
+        ImGui::SameLine();
+        ImGui::TextUnformatted(playing ? "Playing" : "Paused");
+
+        if (ImGui::BeginCombo("Active scene", activeName)) {
+            for (size_t i = 0; i < m_timeline->sceneCount(); ++i) {
+                const auto* scene = m_timeline->scene(i);
+                if (!scene)
+                    continue;
+
+                const bool selected = i == activeIndex;
+                if (ImGui::Selectable(scene->name().c_str(), selected))
+                    m_timeline->seekToScene(i);
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        if (ImGui::Button("Previous") && m_timeline->sceneCount() > 1)
+            m_timeline->previousScene();
+        ImGui::SameLine();
+        if (ImGui::Button("Next") && m_timeline->sceneCount() > 1)
+            m_timeline->nextScene();
+
+        ImGui::Text("Timeline %.1f / %.1f s", m_timeline->time(), m_timeline->duration());
+
+        ImGui::End();
+    }
+
+    bool isDemoPlaying() const
+    {
+        return m_timeline && m_timeline->isPlaying() && !TimeController::instance()->isPaused();
+    }
+
+    void setDemoPlaying(bool playing)
+    {
+        if (m_timeline) {
+            if (playing)
+                m_timeline->play();
+            else
+                m_timeline->pause();
+        }
+
+        if (playing)
+            TimeController::instance()->resume();
+        else
+            TimeController::instance()->pause();
+
+        m_audioPlayer.setPaused(!playing);
+    }
+
+    // Compute the dip-to-black fade amount for the active scene: fade in from black
+    // over the first m_fadeDuration seconds, fade out to black over the last
+    // m_fadeDuration seconds. At a scene boundary (including the loop wrap) the outgoing
+    // fade-out meets the incoming fade-in, producing a smooth dip-to-black transition.
+    void updateSceneFade()
+    {
+        if (!m_fadeEffect || !m_timeline)
+            return;
+
+        const auto* scene = m_timeline->activeScene();
+        if (!scene) {
+            m_fadeEffect->setFadeAmount(0.0f);
+            return;
+        }
+
+        const double duration = scene->duration();
+        const double localTime = m_timeline->localTime();
+        const double fadeDuration = std::min(m_fadeDuration, duration * 0.5);
+
+        double amount = 0.0;
+        if (fadeDuration > 0.0) {
+            if (localTime < fadeDuration)
+                amount = 1.0 - localTime / fadeDuration; // fade in from black
+            else if (localTime > duration - fadeDuration)
+                amount = (localTime - (duration - fadeDuration)) / fadeDuration; // fade out to black
+        }
+
+        m_fadeEffect->setFadeAmount(static_cast<float>(std::clamp(amount, 0.0, 1.0)));
+    }
+
     void applyCamera(const TimelineCamera& camera)
     {
         auto manipulator = cameraManipulator();
@@ -284,7 +444,7 @@ private:
 
     void loadSceneSettings()
     {
-        if (!m_particleScene)
+        if (!m_particleScene && !m_tunnelScene)
             return;
 
         std::ifstream in(m_settingsPath);
@@ -296,11 +456,15 @@ private:
 
         if (const auto it = json.find(m_particleScene->name()); it != json.end())
             m_particleScene->fromJson(*it);
+        if (m_tunnelScene) {
+            if (const auto it = json.find(m_tunnelScene->name()); it != json.end())
+                m_tunnelScene->fromJson(*it);
+        }
     }
 
     void saveSceneSettings()
     {
-        if (!m_particleScene)
+        if (!m_particleScene && !m_tunnelScene)
             return;
 
         nlohmann::json json;
@@ -312,7 +476,10 @@ private:
         if (!json.is_object())
             json = nlohmann::json::object();
 
-        json[m_particleScene->name()] = m_particleScene->toJson();
+        if (m_particleScene)
+            json[m_particleScene->name()] = m_particleScene->toJson();
+        if (m_tunnelScene)
+            json[m_tunnelScene->name()] = m_tunnelScene->toJson();
 
         std::ofstream out(m_settingsPath);
         if (out)
@@ -343,6 +510,7 @@ int main()
 
     auto win = ExampleWindow::create(1280, 720, "Flow Field - timeline particles");
     app->addWindow(win);
+    //win->maximize();
 
     return app->loop();
 }

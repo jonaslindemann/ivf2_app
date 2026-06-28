@@ -4,7 +4,7 @@ project(ivf_app_standalone LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS OFF) 
 
 set(LIBRARY_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/lib")
 set(EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/bin")
@@ -54,6 +54,8 @@ add_executable(ivf_app ${APP_TYPE}
     src/ivf_app.cpp
     src/particle_scene.cpp
     src/particle_scene.h
+    src/tunnel_scene.cpp
+    src/tunnel_scene.h
 )
 
 target_include_directories(ivf_app PRIVATE

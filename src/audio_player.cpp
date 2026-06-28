@@ -41,12 +41,12 @@ bool AudioPlayer::load(const std::filesystem::path& audioPath)
         return false;
     }
 
+    m_status = "Audio: loaded " + audioPath.filename().string();
     buildEnvelope(audioPath);
 
     m_musicReady = true;
     ma_sound_set_looping(&m_music, m_repeat ? MA_TRUE : MA_FALSE);
     ma_sound_set_volume(&m_music, m_volume);
-    play();
     return true;
 }
 
