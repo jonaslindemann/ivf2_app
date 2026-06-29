@@ -56,6 +56,8 @@ add_executable(ivf_app ${APP_TYPE}
     src/particle_scene.h
     src/tunnel_scene.cpp
     src/tunnel_scene.h
+    src/lorenz_scene.cpp
+    src/lorenz_scene.h
 )
 
 target_include_directories(ivf_app PRIVATE

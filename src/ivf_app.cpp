@@ -14,6 +14,7 @@
 #include "audio_player.h"
 #include "particle_scene.h"
 #include "tunnel_scene.h"
+#include "lorenz_scene.h"
 
 #include <ivf/gl.h>
 #include <ivf/nodes.h>
@@ -58,6 +59,7 @@ private:
     SceneTimelinePlayerPtr m_timelinePlayer;
     std::shared_ptr<ParticleTimelineScene> m_particleScene;
     std::shared_ptr<TunnelTimelineScene> m_tunnelScene;
+    std::shared_ptr<AttractorTimelineScene> m_attractorScene;
     FadeEffectPtr m_fadeEffect;
     double m_fadeDuration{3.0}; // seconds of fade-in and fade-out per scene
     AudioPlayer m_audioPlayer;
@@ -212,6 +214,7 @@ public:
 
 		m_particleScene = ParticleTimelineScene::create();
         m_tunnelScene = TunnelTimelineScene::create();
+        m_attractorScene = AttractorTimelineScene::create();
 
 		// Add effects to the timeline scene (SceneTimelinePlayer will apply scene effects)
 
@@ -251,6 +254,24 @@ public:
         for (int i = 0; i < static_cast<int>(m_tunnelScene->effects().size()); ++i)
             m_tunnelScene->effects()[static_cast<size_t>(i)]->program()->setEnabled(false);
 
+        m_attractorScene->effect(blurEffect);            //  0
+        m_attractorScene->effect(tintEffect);            //  1
+        m_attractorScene->effect(chromaticEffect);       //  2
+        m_attractorScene->effect(ditheringEffect);       //  3
+        m_attractorScene->effect(bloomEffect);           //  4
+        m_attractorScene->effect(filmgrainEffect);       //  7
+        m_attractorScene->effect(glitchEffect);          // 11
+        m_attractorScene->effect(scanlineEffect);        // 12
+        m_attractorScene->effect(posterizeEffect);       // 13
+        m_attractorScene->effect(colorGradingEffect);    // 14
+        m_attractorScene->effect(motionBlurEffect);      // 16
+        m_attractorScene->effect(feedbackEffect);        // 17
+        m_attractorScene->effect(halftoneEffect);         // 18
+        // Disable all effects by default
+
+        for (int i = 0; i < static_cast<int>(m_attractorScene->effects().size()); ++i)
+            m_attractorScene->effects()[static_cast<size_t>(i)]->program()->setEnabled(false);
+
         // Fade transition effect (dip-to-black). Added last so it is applied on top of
         // every other effect, and kept enabled so scene fade-in / fade-out is always active.
 
@@ -261,11 +282,13 @@ public:
 
         m_particleScene->effect(m_fadeEffect);
         m_tunnelScene->effect(m_fadeEffect);
+        m_attractorScene->effect(m_fadeEffect);
 
         m_timeline = SceneTimeline::create();
         m_timeline->setLoop(true);
         m_timeline->addScene(m_particleScene->name(), m_particleScene->duration()) = *m_particleScene;
         m_timeline->addScene(m_tunnelScene->name(), m_tunnelScene->duration()) = *m_tunnelScene;
+        m_timeline->addScene(m_attractorScene->name(), m_attractorScene->duration()) = *m_attractorScene;
         m_timeline->pause();
 
         m_timelinePlayer = SceneTimelinePlayer::create(this, m_timeline);
@@ -292,13 +315,18 @@ public:
             m_particleScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
         if (m_tunnelScene)
             m_tunnelScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
+        if (m_attractorScene)
+            m_attractorScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
 
         if (m_timelinePlayer)
             m_timelinePlayer->update(dt);
 
         updateSceneFade();
 
-        if (m_timeline && m_timeline->activeSceneIndex() == 1 && m_tunnelScene)
+        const size_t activeIndex = m_timeline ? m_timeline->activeSceneIndex() : SceneTimeline::npos;
+        if (activeIndex == 2 && m_attractorScene)
+            applyCamera(m_attractorScene->camera());
+        else if (activeIndex == 1 && m_tunnelScene)
             applyCamera(m_tunnelScene->camera());
         else if (m_particleScene)
             applyCamera(m_particleScene->camera());
@@ -314,7 +342,10 @@ public:
     {
         drawSceneSwitcher();
 
-        if (m_timeline && m_timeline->activeSceneIndex() == 1 && m_tunnelScene)
+        const size_t activeIndex = m_timeline ? m_timeline->activeSceneIndex() : SceneTimeline::npos;
+        if (activeIndex == 2 && m_attractorScene)
+            m_attractorScene->drawControls();
+        else if (activeIndex == 1 && m_tunnelScene)
             m_tunnelScene->drawControls();
         else if (m_particleScene)
             m_particleScene->drawControls();
@@ -460,6 +491,10 @@ private:
             if (const auto it = json.find(m_tunnelScene->name()); it != json.end())
                 m_tunnelScene->fromJson(*it);
         }
+        if (m_attractorScene) {
+            if (const auto it = json.find(m_attractorScene->name()); it != json.end())
+                m_attractorScene->fromJson(*it);
+        }
     }
 
     void saveSceneSettings()
@@ -480,6 +515,8 @@ private:
             json[m_particleScene->name()] = m_particleScene->toJson();
         if (m_tunnelScene)
             json[m_tunnelScene->name()] = m_tunnelScene->toJson();
+        if (m_attractorScene)
+            json[m_attractorScene->name()] = m_attractorScene->toJson();
 
         std::ofstream out(m_settingsPath);
         if (out)
