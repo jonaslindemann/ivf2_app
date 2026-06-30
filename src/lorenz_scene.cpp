@@ -250,6 +250,49 @@ void AttractorTimelineScene::drawControls()
     ImGui::End();
 }
 
+void AttractorTimelineScene::setupProperties()
+{
+    // Ranges mirror the ImGui sliders in drawControls() so GUI and MIDI agree.
+    addProperty("Sigma", &m_sigma, 1.0, 20.0, "Attractor");
+    addProperty("Rho", &m_rho, 1.0, 60.0, "Attractor");
+    addProperty("Beta", &m_beta, 0.5, 5.0, "Attractor");
+    addProperty("Speed", &m_speed, 50.0, 2000.0, "Attractor");
+    addProperty("Scale", &m_scale, 0.05, 0.8, "Attractor");
+
+    addProperty("Trail length", &m_trailSeconds, 0.5, 12.0, "Trail");
+    addProperty("Start size", &m_startSize, 0.01, 4.0, "Trail");
+    addProperty("End size", &m_endSize, 0.0, 4.0, "Trail");
+    addPropertyWithRange("Start color", &m_startColor, 0.0, 1.0, "Trail");
+    addPropertyWithRange("End color", &m_endColor, 0.0, 1.0, "Trail");
+
+    addProperty("Depth fog", &m_depthFog, "Fog");
+    addProperty("Fog near", &m_fogNear, 0.0, 60.0, "Fog");
+    addProperty("Fog far", &m_fogFar, 1.0, 120.0, "Fog");
+
+    addProperty("Orbit radius", &m_cameraRadius, 8.0, 60.0, "Camera");
+    addProperty("Camera height", &m_cameraHeight, 0.0, 24.0, "Camera");
+    addProperty("Undulation", &m_cameraUndulation, 0.0, 10.0, "Camera");
+    addProperty("Orbit speed", &m_cameraOrbitSpeed, 0.0, 0.5, "Camera");
+
+    addProperty("Sensitivity", &m_audioSensitivity, 0.2, 5.0, "Audio");
+    addProperty("Impact", &m_audioImpact, 0.0, 3.0, "Audio");
+    addProperty("Speed boost", &m_audioSpeedBoost, 0.0, 4.0, "Audio");
+    addProperty("Start size boost", &m_audioStartSizeBoost, 0.0, 4.0, "Audio");
+    addProperty("End size boost", &m_audioEndSizeBoost, 0.0, 4.0, "Audio");
+}
+
+void AttractorTimelineScene::onPropertyChanged(const std::string& /*propertyName*/)
+{
+    m_fogFar = (std::max)(m_fogFar, m_fogNear + 0.1f);
+
+    if (m_ps) {
+        m_ps->setLifetime(m_trailSeconds * 0.85f, m_trailSeconds);
+        applyParticleAppearance(m_audioLevel * m_audioImpact,
+                                std::clamp(m_audioLevel * m_audioImpact, 0.0f, 1.0f));
+        applyFogSettings();
+    }
+}
+
 nlohmann::json AttractorTimelineScene::toJson() const
 {
     return {

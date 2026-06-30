@@ -71,6 +71,10 @@ public:
     nlohmann::json toJson() const;
     void fromJson(const nlohmann::json& json);
 
+protected:
+    void setupProperties() override;
+    void onPropertyChanged(const std::string& propertyName) override;
+
 private:
     void setupSceneGraph();
     void buildCameraPath();

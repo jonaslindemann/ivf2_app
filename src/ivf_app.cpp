@@ -15,10 +15,12 @@
 #include "particle_scene.h"
 #include "tunnel_scene.h"
 #include "lorenz_scene.h"
+#include "midi_binder.h"
 
 #include <ivf/gl.h>
 #include <ivf/nodes.h>
 #include <ivf/scene_timeline.h>
+#include <ivf/midi_controller.h>
 #include <ivfui/scene_timeline_player.h>
 #include <ivfui/time_control_panel.h>
 #include <ivfui/ui.h>
@@ -64,6 +66,11 @@ private:
     double m_fadeDuration{3.0}; // seconds of fade-in and fade-out per scene
     AudioPlayer m_audioPlayer;
     std::filesystem::path m_settingsPath{"scene_settings.json"};
+
+    MidiControllerPtr m_midi;
+    MidiParameterBinder m_midiBinder;
+    std::filesystem::path m_midiMappingPath{"midi_mappings.json"};
+    int m_midiPort{-1};
 
 public:
     ExampleWindow(int w, int h, std::string title) : GLFWSceneWindow(w, h, title) {}
@@ -212,6 +219,22 @@ public:
 		auto halftoneEffect = HalftoneEffect::create();
 		halftoneEffect->load();
 
+		// Name effects so MIDI bindings have stable, human-readable target ids.
+
+		blurEffect->setName("Blur");
+		tintEffect->setName("Tint");
+		chromaticEffect->setName("Chromatic");
+		ditheringEffect->setName("Dithering");
+		bloomEffect->setName("Bloom");
+		filmgrainEffect->setName("Film grain");
+		glitchEffect->setName("Glitch");
+		scanlineEffect->setName("Scanline");
+		posterizeEffect->setName("Posterize");
+		colorGradingEffect->setName("Color grading");
+		motionBlurEffect->setName("Motion blur");
+		feedbackEffect->setName("Feedback");
+		halftoneEffect->setName("Halftone");
+
 		m_particleScene = ParticleTimelineScene::create();
         m_tunnelScene = TunnelTimelineScene::create();
         m_attractorScene = AttractorTimelineScene::create();
@@ -304,12 +327,48 @@ public:
 
         this->showEffectInspector();
 
+        setupMidi();
+
         return 0;
+    }
+
+    void setupMidi()
+    {
+        // Register MIDI-controllable targets. Scenes and effects both derive from
+        // PropertyInspectable, so the binder drives them through one uniform path.
+        m_midiBinder.addTarget("scene:" + m_particleScene->name(), "Scene: " + m_particleScene->name(),
+                               m_particleScene.get());
+        m_midiBinder.addTarget("scene:" + m_tunnelScene->name(), "Scene: " + m_tunnelScene->name(),
+                               m_tunnelScene.get());
+        m_midiBinder.addTarget("scene:" + m_attractorScene->name(), "Scene: " + m_attractorScene->name(),
+                               m_attractorScene.get());
+
+        // Effect objects are shared across scenes; registering them once is enough.
+        for (const auto& effect : m_particleScene->effects()) {
+            if (!effect || effect->name().empty())
+                continue;
+            m_midiBinder.addTarget("effect:" + effect->name(), "Effect: " + effect->name(), effect.get());
+        }
+
+        m_midiBinder.load(m_midiMappingPath);
+
+        m_midi = MidiController::create();
+        const auto ports = m_midi->listPorts();
+        if (!ports.empty())
+            if (m_midi->openPort(0))
+                m_midiPort = 0;
     }
 
     void onUpdate() override
     {
         const double dt = TimeController::instance()->delta();
+
+        // Drain MIDI on the main thread and apply CC messages to bound parameters.
+        if (m_midi) {
+            for (const auto& msg : m_midi->poll())
+                if (msg.type == MidiMessage::ControlChange)
+                    m_midiBinder.applyCC(msg.channel, msg.data1, msg.data2);
+        }
 
         if (m_particleScene)
             m_particleScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
@@ -351,16 +410,60 @@ public:
             m_particleScene->drawControls();
 
         m_audioPlayer.drawControls();
+
+        drawMidiPortSelector();
+        m_midiBinder.drawControls();
     }
 
 	void onClose() override
 	{
 		saveSceneSettings();
+		m_midiBinder.save(m_midiMappingPath);
 		if (m_audioPlayer.isPlaying())
 			m_audioPlayer.setPaused(true);
     }
 
 private:
+    void drawMidiPortSelector()
+    {
+        if (!m_midi)
+            return;
+
+        ImGui::SetNextWindowSize({320, 0}, ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos({960, 320}, ImGuiCond_FirstUseEver);
+        ImGui::Begin("MIDI Device");
+
+        const auto ports = m_midi->listPorts();
+        if (ports.empty()) {
+            ImGui::TextUnformatted("No MIDI input ports found.");
+            const std::string err = m_midi->lastError();
+            if (!err.empty())
+                ImGui::TextColored({1.0f, 0.5f, 0.5f, 1.0f}, "%s", err.c_str());
+            ImGui::End();
+            return;
+        }
+
+        const char* current = (m_midiPort >= 0 && m_midiPort < static_cast<int>(ports.size()))
+                                  ? ports[static_cast<size_t>(m_midiPort)].c_str()
+                                  : "None";
+        if (ImGui::BeginCombo("Input port", current)) {
+            for (size_t i = 0; i < ports.size(); ++i) {
+                const bool selected = static_cast<int>(i) == m_midiPort;
+                if (ImGui::Selectable(ports[i].c_str(), selected)) {
+                    if (m_midi->openPort(static_cast<unsigned int>(i)))
+                        m_midiPort = static_cast<int>(i);
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::Text("Status: %s", m_midi->isOpen() ? "connected" : "closed");
+
+        ImGui::End();
+    }
+
     void drawSceneSwitcher()
     {
         if (!m_timeline || m_timeline->sceneCount() == 0)

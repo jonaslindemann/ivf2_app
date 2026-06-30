@@ -8,7 +8,7 @@
         "baseEmitRate": 641.9240112304688,
         "cameraHeight": 4.480000019073486,
         "cameraOrbitSpeed": 0.1940000057220459,
-        "cameraRadius": 19.075000762939453,
+        "cameraRadius": 21.9212589263916,
         "cameraUndulation": 1.2760000228881836,
         "cameraUndulationSpeed": 0.18000000715255737,
         "depthFog": false,
@@ -24,7 +24,7 @@
             0.250980406999588,
             0.47843137383461
         ],
-        "endSize": 0.9079999923706055,
+        "endSize": 0.0,
         "fogColor": [
             0.0,
             0.0,
@@ -35,7 +35,7 @@
         "octaves": 4,
         "pathCamera": false,
         "pathSpeed": 0.014999999664723873,
-        "scale": 0.14399999380111694,
+        "scale": 0.14212597906589508,
         "startColor": [
             0.0,
             0.019802093505859375,
@@ -48,8 +48,8 @@
             0.6000000238418579,
             0.3499999940395355
         ],
-        "startSize": 0.17499999701976776,
-        "strength": 0.652999997138977,
+        "startSize": 0.34015747904777527,
+        "strength": 0.6456692814826965,
         "timeScale": 0.0729999989271164
     },
     "Lorenz Drift": {
@@ -151,7 +151,7 @@
         ],
         "startSize": 0.19200000166893005,
         "tunnelLength": 60.2599983215332,
-        "tunnelRadius": 6.072000026702881,
+        "tunnelRadius": 5.527559280395508,
         "twistAmount": 1.0750000476837158
     }
 }

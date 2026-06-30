@@ -1,0 +1,39 @@
+{
+    "bindings": [
+        {
+            "cc": 15,
+            "channel": 0,
+            "component": -1,
+            "property": "Strength",
+            "target": "scene:Flow Field"
+        },
+        {
+            "cc": 16,
+            "channel": 0,
+            "component": -1,
+            "property": "Start size",
+            "target": "scene:Flow Field"
+        },
+        {
+            "cc": 17,
+            "channel": 0,
+            "component": -1,
+            "property": "End size",
+            "target": "scene:Flow Field"
+        },
+        {
+            "cc": 18,
+            "channel": 0,
+            "component": -1,
+            "property": "Orbit radius",
+            "target": "scene:Flow Field"
+        },
+        {
+            "cc": 14,
+            "channel": 0,
+            "component": -1,
+            "property": "Radius",
+            "target": "scene:Pulse Corridor"
+        }
+    ]
+}

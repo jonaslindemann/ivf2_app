@@ -143,6 +143,46 @@ void TunnelTimelineScene::setAudioInput(float level, bool playing)
     m_audioInputPlaying = playing;
 }
 
+void TunnelTimelineScene::setupProperties()
+{
+    // Ranges mirror the ImGui sliders in drawControls() so GUI and MIDI agree.
+    addProperty("Emit rate", &m_emitRate, 200.0, 5000.0, "Tunnel");
+    addProperty("Radius", &m_tunnelRadius, 2.0, 16.0, "Tunnel");
+    addProperty("Ring spacing", &m_ringSpacing, 0.4, 6.0, "Tunnel");
+    addProperty("Forward speed", &m_forwardSpeed, 1.0, 26.0, "Tunnel");
+    addProperty("Twist", &m_twistAmount, -2.0, 2.0, "Tunnel");
+    addProperty("Pulse strength", &m_pulseStrength, 0.0, 4.0, "Tunnel");
+    addProperty("Tunnel length", &m_tunnelLength, 16.0, 90.0, "Tunnel");
+
+    addProperty("Start size", &m_startSize, 0.01, 5.0, "Appearance");
+    addProperty("End size", &m_endSize, 0.0, 7.0, "Appearance");
+    addPropertyWithRange("Start color", &m_startColor, 0.0, 1.0, "Appearance");
+    addPropertyWithRange("End color", &m_endColor, 0.0, 1.0, "Appearance");
+
+    addProperty("Depth fog", &m_depthFog, "Fog");
+    addProperty("Fog near", &m_fogNear, 0.0, 50.0, "Fog");
+    addProperty("Fog far", &m_fogFar, 1.0, 120.0, "Fog");
+
+    addProperty("Camera speed", &m_cameraSpeed, 0.0, 20.0, "Camera");
+    addProperty("Sway", &m_cameraSway, 0.0, 5.0, "Camera");
+    addProperty("Height roll", &m_cameraRollHeight, 0.0, 3.0, "Camera");
+
+    addProperty("Sensitivity", &m_audioSensitivity, 0.2, 5.0, "Audio");
+    addProperty("Impact", &m_audioImpact, 0.0, 3.0, "Audio");
+    addProperty("Start size boost", &m_audioStartSizeBoost, 0.0, 4.0, "Audio");
+    addProperty("End size boost", &m_audioEndSizeBoost, 0.0, 5.0, "Audio");
+}
+
+void TunnelTimelineScene::onPropertyChanged(const std::string& /*propertyName*/)
+{
+    m_fogFar = (std::max)(m_fogFar, m_fogNear + 0.1f);
+
+    applyEmitterSettings();
+    applyParticleAppearance(m_audioLevel * m_audioImpact,
+                            std::clamp(m_audioLevel * m_audioImpact, 0.0f, 1.0f));
+    applyFogSettings();
+}
+
 nlohmann::json TunnelTimelineScene::toJson() const
 {
     return {

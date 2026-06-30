@@ -58,6 +58,8 @@ add_executable(ivf_app ${APP_TYPE}
     src/tunnel_scene.h
     src/lorenz_scene.cpp
     src/lorenz_scene.h
+    src/midi_binder.cpp
+    src/midi_binder.h
 )
 
 target_include_directories(ivf_app PRIVATE

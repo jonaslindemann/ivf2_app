@@ -247,6 +247,59 @@ void ParticleTimelineScene::fromJson(const nlohmann::json& json)
     }
 }
 
+void ParticleTimelineScene::setupProperties()
+{
+    // Ranges mirror the ImGui sliders in drawControls() so GUI and MIDI agree.
+    addProperty("Scale", &m_scale, 0.05, 2.0, "Flow Field");
+    addProperty("Strength", &m_strength, 0.1, 10.0, "Flow Field");
+    addProperty("Octaves", &m_octaves, 1, 4, "Flow Field");
+    addProperty("Time speed", &m_timeScale, 0.0, 0.5, "Flow Field");
+    addProperty("Emit rate", &m_baseEmitRate, 100.0, 2000.0, "Flow Field");
+
+    addProperty("Start size", &m_startSize, 0.01, 6.0, "Appearance");
+    addProperty("End size", &m_endSize, 0.0, 6.0, "Appearance");
+    addPropertyWithRange("Start color", &m_startColor, 0.0, 1.0, "Appearance");
+    addPropertyWithRange("End color", &m_endColor, 0.0, 1.0, "Appearance");
+
+    addProperty("Depth fog", &m_depthFog, "Fog");
+    addProperty("Fog near", &m_fogNear, 0.0, 60.0, "Fog");
+    addProperty("Fog far", &m_fogFar, 1.0, 120.0, "Fog");
+
+    addProperty("Auto camera", &m_autoCamera, "Camera");
+    addProperty("Orbit radius", &m_cameraRadius, 12.0, 48.0, "Camera");
+    addProperty("Camera height", &m_cameraHeight, 2.0, 24.0, "Camera");
+    addProperty("Undulation", &m_cameraUndulation, 0.0, 10.0, "Camera");
+    addProperty("Orbit speed", &m_cameraOrbitSpeed, 0.0, 0.4, "Camera");
+    addProperty("Path camera", &m_pathCamera, "Camera");
+    addProperty("Path speed", &m_pathSpeed, 0.005, 0.2, "Camera");
+
+    addProperty("Sensitivity", &m_audioSensitivity, 0.2, 4.0, "Audio");
+    addProperty("Impact", &m_audioImpact, 0.0, 2.0, "Audio");
+    addProperty("Start size boost", &m_audioStartSizeBoost, 0.0, 4.0, "Audio");
+    addProperty("End size boost", &m_audioEndSizeBoost, 0.0, 4.0, "Audio");
+}
+
+void ParticleTimelineScene::onPropertyChanged(const std::string& /*propertyName*/)
+{
+    // Re-apply tunables to the underlying systems. The set is small and cheap, so
+    // we reapply everything rather than match property names individually.
+    m_fogFar = (std::max)(m_fogFar, m_fogNear + 0.1f);
+
+    if (m_field) {
+        m_field->setScale(m_scale);
+        m_field->setStrength(m_strength);
+        m_field->setOctaves(m_octaves);
+        m_field->setTimeScale(m_timeScale);
+    }
+
+    if (m_ps) {
+        m_ps->setEmitRate(m_baseEmitRate);
+        applyParticleAppearance(m_audioLevel * m_audioImpact,
+                                std::clamp(m_audioLevel * m_audioImpact, 0.0f, 1.0f));
+        applyFogSettings();
+    }
+}
+
 void ParticleTimelineScene::setupSceneGraph()
 {
     m_root = CompositeNode::create();
