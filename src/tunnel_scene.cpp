@@ -74,12 +74,8 @@ std::shared_ptr<TunnelTimelineScene> TunnelTimelineScene::create()
     return std::make_shared<TunnelTimelineScene>();
 }
 
-void TunnelTimelineScene::drawControls()
+void TunnelTimelineScene::drawControlsContent()
 {
-    ImGui::SetNextWindowSize({300, 0}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos({300, 10}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Pulse Corridor");
-
     ImGui::Text("Alive : %d / %d", m_ps->aliveCount(), m_ps->maxParticles());
     ImGui::Text("Time  : %.2f s", TimeController::instance()->elapsed());
 
@@ -133,8 +129,6 @@ void TunnelTimelineScene::drawControls()
     ImGui::SliderFloat("End size boost##tunnel", &m_audioEndSizeBoost, 0.0f, 5.0f);
     ImGui::ColorEdit4("Start color boost##tunnel", &m_startColorAudioBoost.x);
     ImGui::ColorEdit4("End color boost##tunnel", &m_endColorAudioBoost.x);
-
-    ImGui::End();
 }
 
 void TunnelTimelineScene::setAudioInput(float level, bool playing)

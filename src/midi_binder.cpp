@@ -166,12 +166,8 @@ void MidiParameterBinder::applyCC(int channel, int cc, int value)
     }
 }
 
-void MidiParameterBinder::drawControls()
+void MidiParameterBinder::drawContent()
 {
-    ImGui::SetNextWindowSize({320, 0}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos({960, 10}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("MIDI Mapping");
-
     if (m_learnArmed) {
         ImGui::TextColored({1.0f, 0.8f, 0.2f, 1.0f}, "Move a MIDI control to bind:");
         ImGui::TextUnformatted(m_learnProperty.c_str());
@@ -232,8 +228,6 @@ void MidiParameterBinder::drawControls()
         }
         ImGui::PopID();
     }
-
-    ImGui::End();
 }
 
 bool MidiParameterBinder::load(const std::filesystem::path& path)

@@ -66,7 +66,7 @@ public:
 
     static std::shared_ptr<ParticleTimelineScene> create();
 
-    void drawControls();
+    void drawControlsContent();
     void setAudioInput(float level, bool playing);
     nlohmann::json toJson() const;
     void fromJson(const nlohmann::json& json);

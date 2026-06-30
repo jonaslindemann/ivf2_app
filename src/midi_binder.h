@@ -50,9 +50,9 @@ public:
     void applyCC(int channel, int cc, int value);
 
     /**
-     * @brief Draw the MIDI-Learn / bindings ImGui panel.
+     * @brief Draw the MIDI-Learn / bindings ImGui contents (no window wrapper).
      */
-    void drawControls();
+    void drawContent();
 
     bool load(const std::filesystem::path& path);
     bool save(const std::filesystem::path& path) const;

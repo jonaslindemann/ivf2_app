@@ -50,12 +50,8 @@ bool AudioPlayer::load(const std::filesystem::path& audioPath)
     return true;
 }
 
-void AudioPlayer::drawControls()
+void AudioPlayer::drawContent()
 {
-    ImGui::SetNextWindowSize({280, 0}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos({10, 360}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Audio");
-
     ImGui::TextUnformatted(m_status.c_str());
     if (m_musicReady) {
         if (ImGui::Button(m_playing ? "Pause audio" : "Play audio")) {
@@ -73,8 +69,6 @@ void AudioPlayer::drawControls()
 
         ImGui::ProgressBar(energy(), {-1.0f, 0.0f}, "Energy");
     }
-
-    ImGui::End();
 }
 
 void AudioPlayer::setPaused(bool paused)

@@ -51,12 +51,8 @@ std::shared_ptr<ParticleTimelineScene> ParticleTimelineScene::create()
     return std::make_shared<ParticleTimelineScene>();
 }
 
-void ParticleTimelineScene::drawControls()
+void ParticleTimelineScene::drawControlsContent()
 {
-    ImGui::SetNextWindowSize({280, 0}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos({10, 10}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Flow Field");
-
     bool changed = false;
     changed |= ImGui::SliderFloat("Scale", &m_scale, 0.05f, 2.0f);
     changed |= ImGui::SliderFloat("Strength", &m_strength, 0.1f, 10.0f);
@@ -124,8 +120,6 @@ void ParticleTimelineScene::drawControls()
     ImGui::SliderFloat("End size boost", &m_audioEndSizeBoost, 0.0f, 4.0f);
     ImGui::ColorEdit4("Start color boost", &m_startColorAudioBoost.x);
     ImGui::ColorEdit4("End color boost", &m_endColorAudioBoost.x);
-
-    ImGui::End();
 }
 
 void ParticleTimelineScene::setAudioInput(float level, bool playing)

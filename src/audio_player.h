@@ -28,7 +28,7 @@ public:
     ~AudioPlayer();
 
     bool load(const std::filesystem::path& audioPath);
-    void drawControls();
+    void drawContent();
     void setPaused(bool paused);
 
     bool isPlaying() const;

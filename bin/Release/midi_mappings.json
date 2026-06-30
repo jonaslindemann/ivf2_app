@@ -32,8 +32,8 @@
             "cc": 14,
             "channel": 0,
             "component": -1,
-            "property": "Radius",
-            "target": "scene:Pulse Corridor"
+            "property": "Scale",
+            "target": "scene:Flow Field"
         }
     ]
 }

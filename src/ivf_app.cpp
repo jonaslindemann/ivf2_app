@@ -16,13 +16,14 @@
 #include "tunnel_scene.h"
 #include "lorenz_scene.h"
 #include "midi_binder.h"
+#include "control_center_window.h"
+#include "scene_controls_window.h"
 
 #include <ivf/gl.h>
 #include <ivf/nodes.h>
 #include <ivf/scene_timeline.h>
 #include <ivf/midi_controller.h>
 #include <ivfui/scene_timeline_player.h>
-#include <ivfui/time_control_panel.h>
 #include <ivfui/ui.h>
 
 #include <ivf/tint_effect.h>
@@ -59,6 +60,8 @@ class ExampleWindow : public GLFWSceneWindow {
 private:
     SceneTimelinePtr m_timeline;
     SceneTimelinePlayerPtr m_timelinePlayer;
+    bool m_repeatScene{false};        // loop the running scene instead of advancing the timeline
+    size_t m_repeatSceneIndex{0};     // scene pinned for repeat
     std::shared_ptr<ParticleTimelineScene> m_particleScene;
     std::shared_ptr<TunnelTimelineScene> m_tunnelScene;
     std::shared_ptr<AttractorTimelineScene> m_attractorScene;
@@ -71,6 +74,18 @@ private:
     MidiParameterBinder m_midiBinder;
     std::filesystem::path m_midiMappingPath{"midi_mappings.json"};
     int m_midiPort{-1};
+
+    ControlCenterWindowPtr m_controlCenter;
+    SceneControlsWindowPtr m_sceneControls;
+
+    bool m_fullscreen{false};
+    bool m_uiHidden{false};
+    int m_savedX{0}, m_savedY{0}, m_savedW{0}, m_savedH{0}; // windowed geometry to restore
+
+    // Performance-mode panel relocation (control panels move to the other monitor).
+    int m_pendingLayoutFrames{0};
+    ImVec2 m_panelTargets[3];
+    static constexpr const char* k_panelNames[3] = {"Control Center", "Scene", "Effect Inspector"};
 
 public:
     ExampleWindow(int w, int h, std::string title) : GLFWSceneWindow(w, h, title) {}
@@ -320,7 +335,19 @@ public:
         loadSceneSettings();
         m_audioPlayer.load(findAsset("assets/slow_beats.wav"));
 
-        addUiWindow(TimeControlPanel::create());
+        m_controlCenter = ControlCenterWindow::create("Control Center");
+        m_controlCenter->setPosition(10, 30);
+        m_controlCenter->setSize(360, 320);
+        m_controlCenter->transportContent = [this] { drawTransportContent(); };
+        m_controlCenter->audioContent = [this] { m_audioPlayer.drawContent(); };
+        m_controlCenter->midiContent = [this] { drawMidiContent(); };
+        addUiWindow(m_controlCenter);
+
+        m_sceneControls = SceneControlsWindow::create("Scene");
+        m_sceneControls->setPosition(380, 30);
+        m_sceneControls->setSize(320, 480);
+        m_sceneControls->content = [this] { drawActiveSceneContent(); };
+        addUiWindow(m_sceneControls);
 
         TimeController::instance()->setScale(1.0f);
         setDemoPlaying(false);
@@ -380,6 +407,11 @@ public:
         if (m_timelinePlayer)
             m_timelinePlayer->update(dt);
 
+        // Repeat mode: if the timeline has advanced off the pinned scene, seek back to it so the
+        // running scene loops in place instead of moving on to the next one.
+        if (m_repeatScene && m_timeline && m_timeline->activeSceneIndex() != m_repeatSceneIndex)
+            m_timeline->seekToScene(m_repeatSceneIndex);
+
         updateSceneFade();
 
         const size_t activeIndex = m_timeline ? m_timeline->activeSceneIndex() : SceneTimeline::npos;
@@ -393,26 +425,27 @@ public:
 
     void onKey(int key, int /*sc*/, int action, int /*mods*/) override
     {
-        if (action == GLFW_PRESS && key == GLFW_KEY_SPACE)
+        if (action != GLFW_PRESS)
+            return;
+
+        if (key == GLFW_KEY_SPACE)
             setDemoPlaying(!isDemoPlaying());
+        else if (key == GLFW_KEY_F11)
+            toggleFullscreen();
+        else if (key == GLFW_KEY_TAB || key == GLFW_KEY_H)
+            m_uiHidden = !m_uiHidden;
     }
 
-    void onDrawUi() override
+    // Expose Fullscreen / Hide UI as checkable View-menu entries (called once per menu).
+    void onAddMenuItems(UiMenu* menu) override
     {
-        drawSceneSwitcher();
+        if (!menu || menu->name() != "View")
+            return;
 
-        const size_t activeIndex = m_timeline ? m_timeline->activeSceneIndex() : SceneTimeline::npos;
-        if (activeIndex == 2 && m_attractorScene)
-            m_attractorScene->drawControls();
-        else if (activeIndex == 1 && m_tunnelScene)
-            m_tunnelScene->drawControls();
-        else if (m_particleScene)
-            m_particleScene->drawControls();
-
-        m_audioPlayer.drawControls();
-
-        drawMidiPortSelector();
-        m_midiBinder.drawControls();
+        menu->addItem(UiMenuItem::create(
+            "Performance mode", "F11", [this]() { toggleFullscreen(); }, [this]() { return m_fullscreen; }));
+        menu->addItem(UiMenuItem::create(
+            "Hide UI", "Tab", [this]() { m_uiHidden = !m_uiHidden; }, [this]() { return m_uiHidden; }));
     }
 
 	void onClose() override
@@ -423,55 +456,131 @@ public:
 			m_audioPlayer.setPaused(true);
     }
 
-private:
-    void drawMidiPortSelector()
+protected:
+    // Clean-output mode: skip all ImGui rendering so only the scene shows. The ImGui frame is
+    // still begun/ended by the framework, just with nothing drawn.
+    void doDrawUi() override
     {
-        if (!m_midi)
-            return;
-
-        ImGui::SetNextWindowSize({320, 0}, ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowPos({960, 320}, ImGuiCond_FirstUseEver);
-        ImGui::Begin("MIDI Device");
-
-        const auto ports = m_midi->listPorts();
-        if (ports.empty()) {
-            ImGui::TextUnformatted("No MIDI input ports found.");
-            const std::string err = m_midi->lastError();
-            if (!err.empty())
-                ImGui::TextColored({1.0f, 0.5f, 0.5f, 1.0f}, "%s", err.c_str());
-            ImGui::End();
-            return;
+        // Relocate control panels for performance mode. Runs inside the ImGui frame so
+        // SetWindowPos-by-name takes effect (and viewports move the OS window) this frame.
+        if (m_pendingLayoutFrames > 0) {
+            for (int i = 0; i < 3; ++i)
+                ImGui::SetWindowPos(k_panelNames[i], m_panelTargets[i], ImGuiCond_Always);
+            --m_pendingLayoutFrames;
         }
 
-        const char* current = (m_midiPort >= 0 && m_midiPort < static_cast<int>(ports.size()))
-                                  ? ports[static_cast<size_t>(m_midiPort)].c_str()
-                                  : "None";
-        if (ImGui::BeginCombo("Input port", current)) {
-            for (size_t i = 0; i < ports.size(); ++i) {
-                const bool selected = static_cast<int>(i) == m_midiPort;
-                if (ImGui::Selectable(ports[i].c_str(), selected)) {
-                    if (m_midi->openPort(static_cast<unsigned int>(i)))
-                        m_midiPort = static_cast<int>(i);
-                }
-                if (selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-
-        ImGui::Text("Status: %s", m_midi->isOpen() ? "connected" : "closed");
-
-        ImGui::End();
+        if (m_uiHidden)
+            return;
+        GLFWSceneWindow::doDrawUi();
     }
 
-    void drawSceneSwitcher()
+private:
+    // Pick the monitor the window currently sits on (by window center), for multi-monitor setups.
+    GLFWmonitor* monitorForWindow()
     {
-        if (!m_timeline || m_timeline->sceneCount() == 0)
+        GLFWwindow* win = ref();
+        if (!win)
+            return glfwGetPrimaryMonitor();
+
+        int wx, wy, ww, wh;
+        glfwGetWindowPos(win, &wx, &wy);
+        glfwGetWindowSize(win, &ww, &wh);
+        const int cx = wx + ww / 2;
+        const int cy = wy + wh / 2;
+
+        int count = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&count);
+        for (int i = 0; i < count; ++i) {
+            int mx, my;
+            glfwGetMonitorPos(monitors[i], &mx, &my);
+            const GLFWvidmode* mode = glfwGetVideoMode(monitors[i]);
+            if (!mode)
+                continue;
+            if (cx >= mx && cx < mx + mode->width && cy >= my && cy < my + mode->height)
+                return monitors[i];
+        }
+        return glfwGetPrimaryMonitor();
+    }
+
+    // First monitor that is not 'current', or nullptr if there is only one.
+    GLFWmonitor* otherMonitor(GLFWmonitor* current)
+    {
+        int count = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&count);
+        for (int i = 0; i < count; ++i)
+            if (monitors[i] != current)
+                return monitors[i];
+        return nullptr;
+    }
+
+    // Schedule the three control panels to stack near the top-left of the given monitor's work area.
+    void layoutPanelsOn(GLFWmonitor* monitor)
+    {
+        if (!monitor)
             return;
 
-        ImGui::SetNextWindowSize({260, 0}, ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowPos({10, 560}, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Scenes");
+        int wax = 0, way = 0, waw = 0, wah = 0;
+        glfwGetMonitorWorkarea(monitor, &wax, &way, &waw, &wah);
+
+        for (int i = 0; i < 3; ++i)
+            m_panelTargets[i] = ImVec2(static_cast<float>(wax + 20), static_cast<float>(way + 20 + i * 360));
+        m_pendingLayoutFrames = 2;
+    }
+
+    // Performance mode: borderless fullscreen output on the current monitor, control panels moved
+    // to the other monitor, main menu hidden. Toggling off restores the windowed editing layout.
+    void toggleFullscreen()
+    {
+        GLFWwindow* win = ref();
+        if (!win)
+            return;
+
+        GLFWmonitor* monitor = monitorForWindow();
+
+        if (!m_fullscreen) {
+            glfwGetWindowPos(win, &m_savedX, &m_savedY);
+            glfwGetWindowSize(win, &m_savedW, &m_savedH);
+
+            int mx = 0, my = 0;
+            glfwGetMonitorPos(monitor, &mx, &my);
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+            if (!mode)
+                return;
+
+            glfwSetWindowAttrib(win, GLFW_DECORATED, GLFW_FALSE);
+            glfwSetWindowMonitor(win, nullptr, mx, my, mode->width, mode->height, GLFW_DONT_CARE);
+
+            // Controls must stay reachable: show panels, hide the menu, move panels to the other
+            // monitor. With only one monitor the panels stay on the fullscreen output (fallback).
+            hideMainMenu();
+            m_uiHidden = false;
+            if (m_controlCenter)
+                m_controlCenter->show();
+            if (m_sceneControls)
+                m_sceneControls->show();
+            showEffectInspector();
+            layoutPanelsOn(otherMonitor(monitor));
+
+            m_fullscreen = true;
+        } else {
+            glfwSetWindowAttrib(win, GLFW_DECORATED, GLFW_TRUE);
+            glfwSetWindowMonitor(win, nullptr, m_savedX, m_savedY, m_savedW, m_savedH, GLFW_DONT_CARE);
+
+            // Bring the menu and panels back onto the editing monitor.
+            showMainMenu();
+            layoutPanelsOn(monitor);
+
+            m_fullscreen = false;
+        }
+    }
+
+    // Transport tab: demo play/pause, scene selection, timeline readout, and global time scale.
+    void drawTransportContent()
+    {
+        if (!m_timeline || m_timeline->sceneCount() == 0) {
+            ImGui::TextUnformatted("No scenes.");
+            return;
+        }
 
         const size_t activeIndex = m_timeline->activeSceneIndex();
         const auto* activeScene = m_timeline->activeScene();
@@ -491,8 +600,11 @@ private:
                     continue;
 
                 const bool selected = i == activeIndex;
-                if (ImGui::Selectable(scene->name().c_str(), selected))
+                if (ImGui::Selectable(scene->name().c_str(), selected)) {
                     m_timeline->seekToScene(i);
+                    if (m_repeatScene)
+                        m_repeatSceneIndex = i;
+                }
 
                 if (selected)
                     ImGui::SetItemDefaultFocus();
@@ -500,15 +612,85 @@ private:
             ImGui::EndCombo();
         }
 
-        if (ImGui::Button("Previous") && m_timeline->sceneCount() > 1)
+        if (ImGui::Button("Previous") && m_timeline->sceneCount() > 1) {
             m_timeline->previousScene();
+            if (m_repeatScene)
+                m_repeatSceneIndex = m_timeline->activeSceneIndex();
+        }
         ImGui::SameLine();
-        if (ImGui::Button("Next") && m_timeline->sceneCount() > 1)
+        if (ImGui::Button("Next") && m_timeline->sceneCount() > 1) {
             m_timeline->nextScene();
+            if (m_repeatScene)
+                m_repeatSceneIndex = m_timeline->activeSceneIndex();
+        }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Repeat scene", &m_repeatScene)) {
+            if (m_repeatScene)
+                m_repeatSceneIndex = activeIndex;
+        }
 
         ImGui::Text("Timeline %.1f / %.1f s", m_timeline->time(), m_timeline->duration());
 
-        ImGui::End();
+        // Global time controls (ported from ivfui::TimeControlPanel).
+        ImGui::Separator();
+        auto* tc = TimeController::instance();
+        float scale = tc->scale();
+        ImGui::SetNextItemWidth(200.0f);
+        if (ImGui::SliderFloat("Scale", &scale, 0.0f, 4.0f, "%.2fx"))
+            tc->setScale(scale);
+        ImGui::SameLine();
+        if (ImGui::Button("Reset"))
+            tc->reset();
+        ImGui::Text("Elapsed : %.3f s", tc->elapsed());
+    }
+
+    // MIDI tab: input-port selection and status, followed by the learn/bindings table.
+    void drawMidiContent()
+    {
+        if (!m_midi) {
+            ImGui::TextUnformatted("MIDI not initialized.");
+        } else {
+            const auto ports = m_midi->listPorts();
+            if (ports.empty()) {
+                ImGui::TextUnformatted("No MIDI input ports found.");
+                const std::string err = m_midi->lastError();
+                if (!err.empty())
+                    ImGui::TextColored({1.0f, 0.5f, 0.5f, 1.0f}, "%s", err.c_str());
+            } else {
+                const char* current = (m_midiPort >= 0 && m_midiPort < static_cast<int>(ports.size()))
+                                          ? ports[static_cast<size_t>(m_midiPort)].c_str()
+                                          : "None";
+                if (ImGui::BeginCombo("Input port", current)) {
+                    for (size_t i = 0; i < ports.size(); ++i) {
+                        const bool selected = static_cast<int>(i) == m_midiPort;
+                        if (ImGui::Selectable(ports[i].c_str(), selected)) {
+                            if (m_midi->openPort(static_cast<unsigned int>(i)))
+                                m_midiPort = static_cast<int>(i);
+                        }
+                        if (selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+
+                ImGui::Text("Status: %s", m_midi->isOpen() ? "connected" : "closed");
+            }
+        }
+
+        ImGui::Separator();
+        m_midiBinder.drawContent();
+    }
+
+    // Scene window: draw the active scene's tunables.
+    void drawActiveSceneContent()
+    {
+        const size_t activeIndex = m_timeline ? m_timeline->activeSceneIndex() : SceneTimeline::npos;
+        if (activeIndex == 2 && m_attractorScene)
+            m_attractorScene->drawControlsContent();
+        else if (activeIndex == 1 && m_tunnelScene)
+            m_tunnelScene->drawControlsContent();
+        else if (m_particleScene)
+            m_particleScene->drawControlsContent();
     }
 
     bool isDemoPlaying() const

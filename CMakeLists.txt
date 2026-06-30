@@ -60,6 +60,10 @@ add_executable(ivf_app ${APP_TYPE}
     src/lorenz_scene.h
     src/midi_binder.cpp
     src/midi_binder.h
+    src/control_center_window.cpp
+    src/control_center_window.h
+    src/scene_controls_window.cpp
+    src/scene_controls_window.h
 )
 
 target_include_directories(ivf_app PRIVATE

@@ -187,12 +187,8 @@ void AttractorTimelineScene::setAudioInput(float level, bool playing)
     m_audioInputPlaying = playing;
 }
 
-void AttractorTimelineScene::drawControls()
+void AttractorTimelineScene::drawControlsContent()
 {
-    ImGui::SetNextWindowSize({300, 0}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos({600, 10}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Lorenz Drift");
-
     ImGui::Text("Alive : %d / %d", m_ps->aliveCount(), m_ps->maxParticles());
     ImGui::Text("Time  : %.2f s", TimeController::instance()->elapsed());
 
@@ -246,8 +242,6 @@ void AttractorTimelineScene::drawControls()
     ImGui::SliderFloat("End size boost##lorenz", &m_audioEndSizeBoost, 0.0f, 4.0f);
     ImGui::ColorEdit4("Start color boost##lorenz", &m_startColorAudioBoost.x);
     ImGui::ColorEdit4("End color boost##lorenz", &m_endColorAudioBoost.x);
-
-    ImGui::End();
 }
 
 void AttractorTimelineScene::setupProperties()

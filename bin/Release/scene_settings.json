@@ -8,14 +8,14 @@
         "baseEmitRate": 641.9240112304688,
         "cameraHeight": 4.480000019073486,
         "cameraOrbitSpeed": 0.1940000057220459,
-        "cameraRadius": 21.9212589263916,
+        "cameraRadius": 19.65354347229004,
         "cameraUndulation": 1.2760000228881836,
         "cameraUndulationSpeed": 0.18000000715255737,
         "depthFog": false,
         "endColor": [
-            0.5808581113815308,
-            0.0,
-            0.0,
+            0.594059407711029,
+            0.13135965168476105,
+            0.13135965168476105,
             0.0
         ],
         "endColorAudioBoost": [
@@ -24,7 +24,7 @@
             0.250980406999588,
             0.47843137383461
         ],
-        "endSize": 0.0,
+        "endSize": 0.09448818862438202,
         "fogColor": [
             0.0,
             0.0,
@@ -35,10 +35,10 @@
         "octaves": 4,
         "pathCamera": false,
         "pathSpeed": 0.014999999664723873,
-        "scale": 0.14212597906589508,
+        "scale": 0.6890000104904175,
         "startColor": [
-            0.0,
-            0.019802093505859375,
+            0.2112210988998413,
+            0.22684097290039063,
             1.0,
             0.30000001192092896
         ],
@@ -48,16 +48,16 @@
             0.6000000238418579,
             0.3499999940395355
         ],
-        "startSize": 0.34015747904777527,
-        "strength": 0.6456692814826965,
+        "startSize": 0.5759842395782471,
+        "strength": 1.2692912817001343,
         "timeScale": 0.0729999989271164
     },
     "Lorenz Drift": {
-        "audioEndSizeBoost": 0.4000000059604645,
-        "audioImpact": 0.41200000047683716,
-        "audioSensitivity": 1.4539999961853027,
-        "audioSpeedBoost": 1.399999976158142,
-        "audioStartSizeBoost": 0.800000011920929,
+        "audioEndSizeBoost": 0.007000000216066837,
+        "audioImpact": 0.5,
+        "audioSensitivity": 1.7680000066757202,
+        "audioSpeedBoost": 3.994999885559082,
+        "audioStartSizeBoost": 0.4790000021457672,
         "beta": 2.430000066757202,
         "cameraHeight": 14.105999946594238,
         "cameraOrbitSpeed": 0.11800000071525574,
@@ -113,7 +113,7 @@
         "cameraSpeed": 7.0,
         "cameraSway": 2.3519999980926514,
         "depthFog": false,
-        "emitRate": 4319.14892578125,
+        "emitRate": 3804.864013671875,
         "endColor": [
             0.5973597764968872,
             0.0,
@@ -135,7 +135,7 @@
         "fogFar": 120.0,
         "fogNear": 2.0,
         "forwardSpeed": 7.2220001220703125,
-        "pulseStrength": 0.0,
+        "pulseStrength": 4.0,
         "ringSpacing": 3.4240000247955322,
         "startColor": [
             0.1499999761581421,
@@ -150,8 +150,8 @@
             0.25
         ],
         "startSize": 0.19200000166893005,
-        "tunnelLength": 60.2599983215332,
-        "tunnelRadius": 5.527559280395508,
-        "twistAmount": 1.0750000476837158
+        "tunnelLength": 90.0,
+        "tunnelRadius": 3.8329999446868896,
+        "twistAmount": 0.289000004529953
     }
 }
