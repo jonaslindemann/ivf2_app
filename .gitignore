@@ -34,3 +34,8 @@
 /build-release
 *.pdb
 /vcpkg_installed
+*.exp
+*.ini
+*.json
+/build-debug/.vs
+/build-debug

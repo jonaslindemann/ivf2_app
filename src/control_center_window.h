@@ -21,6 +21,7 @@
 class ControlCenterWindow : public ivfui::UiWindow {
 public:
     std::function<void()> transportContent;
+    std::function<void()> displayContent;
     std::function<void()> audioContent;
     std::function<void()> midiContent;
 

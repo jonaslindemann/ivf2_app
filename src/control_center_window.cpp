@@ -22,6 +22,10 @@ void ControlCenterWindow::doDraw()
             transportContent();
             ImGui::EndTabItem();
         }
+        if (displayContent && ImGui::BeginTabItem("Display")) {
+            displayContent();
+            ImGui::EndTabItem();
+        }
         if (audioContent && ImGui::BeginTabItem("Audio")) {
             audioContent();
             ImGui::EndTabItem();

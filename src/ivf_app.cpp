@@ -15,6 +15,7 @@
 #include "particle_scene.h"
 #include "tunnel_scene.h"
 #include "lorenz_scene.h"
+#include "lattice_scene.h"
 #include "midi_binder.h"
 #include "control_center_window.h"
 #include "scene_controls_window.h"
@@ -48,10 +49,14 @@
 #include <ivf/fade_effect.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
+#include <thread>
 
 using namespace ivf;
 using namespace ivfui;
@@ -65,6 +70,7 @@ private:
     std::shared_ptr<ParticleTimelineScene> m_particleScene;
     std::shared_ptr<TunnelTimelineScene> m_tunnelScene;
     std::shared_ptr<AttractorTimelineScene> m_attractorScene;
+    std::shared_ptr<LatticeTimelineScene> m_latticeScene;
     FadeEffectPtr m_fadeEffect;
     double m_fadeDuration{3.0}; // seconds of fade-in and fade-out per scene
     AudioPlayer m_audioPlayer;
@@ -74,6 +80,8 @@ private:
     MidiParameterBinder m_midiBinder;
     std::filesystem::path m_midiMappingPath{"midi_mappings.json"};
     int m_midiPort{-1};
+    bool m_midiOpenInProgress{false}; // a guarded openPort() worker never returned; controller is poisoned
+    std::string m_midiStatus;         // last MIDI open result, shown in the MIDI tab
 
     ControlCenterWindowPtr m_controlCenter;
     SceneControlsWindowPtr m_sceneControls;
@@ -81,6 +89,7 @@ private:
     bool m_fullscreen{false};
     bool m_uiHidden{false};
     int m_savedX{0}, m_savedY{0}, m_savedW{0}, m_savedH{0}; // windowed geometry to restore
+    int m_displayMonitor{-1}; // fullscreen output monitor index; -1 = auto (monitor under the window)
 
     // Performance-mode panel relocation (control panels move to the other monitor).
     int m_pendingLayoutFrames{0};
@@ -253,6 +262,7 @@ public:
 		m_particleScene = ParticleTimelineScene::create();
         m_tunnelScene = TunnelTimelineScene::create();
         m_attractorScene = AttractorTimelineScene::create();
+        m_latticeScene = LatticeTimelineScene::create();
 
 		// Add effects to the timeline scene (SceneTimelinePlayer will apply scene effects)
 
@@ -310,6 +320,24 @@ public:
         for (int i = 0; i < static_cast<int>(m_attractorScene->effects().size()); ++i)
             m_attractorScene->effects()[static_cast<size_t>(i)]->program()->setEnabled(false);
 
+        m_latticeScene->effect(blurEffect);            //  0
+        m_latticeScene->effect(tintEffect);            //  1
+        m_latticeScene->effect(chromaticEffect);       //  2
+        m_latticeScene->effect(ditheringEffect);       //  3
+        m_latticeScene->effect(bloomEffect);           //  4
+        m_latticeScene->effect(filmgrainEffect);       //  7
+        m_latticeScene->effect(glitchEffect);          // 11
+        m_latticeScene->effect(scanlineEffect);        // 12
+        m_latticeScene->effect(posterizeEffect);       // 13
+        m_latticeScene->effect(colorGradingEffect);    // 14
+        m_latticeScene->effect(motionBlurEffect);      // 16
+        m_latticeScene->effect(feedbackEffect);        // 17
+        m_latticeScene->effect(halftoneEffect);         // 18
+        // Disable all effects by default
+
+        for (int i = 0; i < static_cast<int>(m_latticeScene->effects().size()); ++i)
+            m_latticeScene->effects()[static_cast<size_t>(i)]->program()->setEnabled(false);
+
         // Fade transition effect (dip-to-black). Added last so it is applied on top of
         // every other effect, and kept enabled so scene fade-in / fade-out is always active.
 
@@ -318,15 +346,29 @@ public:
         m_fadeEffect->setFadeAmount(0.0f);
         m_fadeEffect->load();
 
+        auto t0 = 0.0;
+        auto t1 = 60.0f + 25.201f;
+        auto t2 = 2 * 60.0f + 8.004f;
+        auto t3 = 2 * 60.0f + 29.352f;
+		auto t4 = 3 * 60.0f + 11.972f;
+        auto t5 = 3 * 60.0f + 55.0f;
+
         m_particleScene->effect(m_fadeEffect);
+		m_particleScene->setDuration(t1-t0);
         m_tunnelScene->effect(m_fadeEffect);
+        m_tunnelScene->setDuration(t2-t1);
         m_attractorScene->effect(m_fadeEffect);
+		m_attractorScene->setDuration(t3 - t2);
+        m_latticeScene->effect(m_fadeEffect);
+		m_latticeScene->setDuration(t4 - t3);
 
         m_timeline = SceneTimeline::create();
         m_timeline->setLoop(true);
         m_timeline->addScene(m_particleScene->name(), m_particleScene->duration()) = *m_particleScene;
         m_timeline->addScene(m_tunnelScene->name(), m_tunnelScene->duration()) = *m_tunnelScene;
         m_timeline->addScene(m_attractorScene->name(), m_attractorScene->duration()) = *m_attractorScene;
+        m_timeline->addScene(m_latticeScene->name(), m_latticeScene->duration()) = *m_latticeScene;
+        m_timeline->addScene(m_particleScene->name(), t5-t4) = *m_particleScene;
         m_timeline->pause();
 
         m_timelinePlayer = SceneTimelinePlayer::create(this, m_timeline);
@@ -339,6 +381,7 @@ public:
         m_controlCenter->setPosition(10, 30);
         m_controlCenter->setSize(360, 320);
         m_controlCenter->transportContent = [this] { drawTransportContent(); };
+        m_controlCenter->displayContent = [this] { drawDisplayContent(); };
         m_controlCenter->audioContent = [this] { m_audioPlayer.drawContent(); };
         m_controlCenter->midiContent = [this] { drawMidiContent(); };
         addUiWindow(m_controlCenter);
@@ -369,6 +412,8 @@ public:
                                m_tunnelScene.get());
         m_midiBinder.addTarget("scene:" + m_attractorScene->name(), "Scene: " + m_attractorScene->name(),
                                m_attractorScene.get());
+        m_midiBinder.addTarget("scene:" + m_latticeScene->name(), "Scene: " + m_latticeScene->name(),
+                               m_latticeScene.get());
 
         // Effect objects are shared across scenes; registering them once is enough.
         for (const auto& effect : m_particleScene->effects()) {
@@ -379,11 +424,104 @@ public:
 
         m_midiBinder.load(m_midiMappingPath);
 
-        m_midi = MidiController::create();
+        m_midi = createMidiGuarded();
+        if (!m_midi) {
+            // RtMidiIn's WinMM backend queries midiInGetNumDevs() in its constructor, which can
+            // hang indefinitely on a wedged MIDI driver. When that happens every RtMidi call
+            // (even listing ports) would block, so we disable MIDI for this session entirely.
+            m_midiStatus = "MIDI subsystem is not responding; MIDI disabled this session.";
+            return;
+        }
+        autoOpenMidiPort();
+    }
+
+    // Construct the MidiController on a detached worker so a hung MIDI driver can't freeze
+    // startup. RtMidiIn's constructor probes the subsystem (midiInGetNumDevs) and can block
+    // forever; if it does not return in time we abandon the worker and report MIDI unavailable.
+    MidiControllerPtr createMidiGuarded(int timeoutMs = 1500)
+    {
+        auto done = std::make_shared<std::atomic<bool>>(false);
+        auto holder = std::make_shared<MidiControllerPtr>();
+
+        std::thread([done, holder] {
+            *holder = MidiController::create();
+            done->store(true, std::memory_order_release);
+        }).detach();
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+        while (!done->load(std::memory_order_acquire)) {
+            if (std::chrono::steady_clock::now() >= deadline)
+                return nullptr; // subsystem not responding; worker left detached, holder kept alive by it
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return *holder;
+    }
+
+    // Names of MIDI inputs we should not auto-open. Virtual/loopback ports (loopMIDI, ALSA/
+    // Windows "MIDI Through") are the usual cause of a blocking openPort(): they are often held
+    // open by another application, and RtMidi's WinMM backend can hang instead of failing.
+    static bool isVirtualMidiPort(const std::string& name)
+    {
+        static const char* const patterns[] = {"loopMIDI", "MIDI Through", "Through"};
+        for (const char* p : patterns)
+            if (name.find(p) != std::string::npos)
+                return true;
+        return false;
+    }
+
+    // Pick a sensible default MIDI input on startup: the first hardware (non-virtual) port,
+    // opened through the guarded path so a misbehaving driver can never freeze the app. If it
+    // does not respond, we leave the port closed and let the user choose one in the MIDI tab.
+    void autoOpenMidiPort()
+    {
+        if (!m_midi)
+            return;
+
         const auto ports = m_midi->listPorts();
-        if (!ports.empty())
-            if (m_midi->openPort(0))
-                m_midiPort = 0;
+        for (size_t i = 0; i < ports.size(); ++i) {
+            if (isVirtualMidiPort(ports[i]))
+                continue;
+            if (openMidiPortGuarded(static_cast<unsigned int>(i)))
+                m_midiPort = static_cast<int>(i);
+            // Whether it opened or timed out, don't blindly probe further ports on startup.
+            return;
+        }
+    }
+
+    // Open a MIDI port without letting a stuck driver freeze the caller. RtMidi's WinMM
+    // openPort() can block indefinitely on a port another app holds open, so we run it on a
+    // detached worker and give up after a short timeout. The worker keeps its own shared_ptr to
+    // the controller, so the object stays alive even if we stop waiting. On timeout the
+    // controller is left poisoned (m_midiOpenInProgress) and not touched again, since a late
+    // completion on the worker would race any further use.
+    bool openMidiPortGuarded(unsigned int index, int timeoutMs = 500)
+    {
+        if (!m_midi || m_midiOpenInProgress)
+            return false;
+
+        auto midi = m_midi;
+        auto done = std::make_shared<std::atomic<bool>>(false);
+        auto ok = std::make_shared<std::atomic<bool>>(false);
+
+        std::thread([midi, done, ok, index] {
+            const bool opened = midi->openPort(index);
+            ok->store(opened, std::memory_order_release);
+            done->store(true, std::memory_order_release);
+        }).detach();
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+        while (!done->load(std::memory_order_acquire)) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                m_midiOpenInProgress = true;
+                m_midiStatus = "Port " + std::to_string(index) + " is not responding; left closed.";
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+
+        const bool opened = ok->load(std::memory_order_acquire);
+        m_midiStatus = opened ? std::string{} : ("Failed to open port " + std::to_string(index));
+        return opened;
     }
 
     void onUpdate() override
@@ -403,6 +541,8 @@ public:
             m_tunnelScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
         if (m_attractorScene)
             m_attractorScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
+        if (m_latticeScene)
+            m_latticeScene->setAudioInput(m_audioPlayer.energy(), m_audioPlayer.isPlaying());
 
         if (m_timelinePlayer)
             m_timelinePlayer->update(dt);
@@ -415,7 +555,9 @@ public:
         updateSceneFade();
 
         const size_t activeIndex = m_timeline ? m_timeline->activeSceneIndex() : SceneTimeline::npos;
-        if (activeIndex == 2 && m_attractorScene)
+        if (activeIndex == 3 && m_latticeScene)
+            applyCamera(m_latticeScene->camera());
+        else if (activeIndex == 2 && m_attractorScene)
             applyCamera(m_attractorScene->camera());
         else if (activeIndex == 1 && m_tunnelScene)
             applyCamera(m_tunnelScene->camera());
@@ -513,6 +655,17 @@ private:
         return nullptr;
     }
 
+    // Monitor selected for fullscreen output. Honors the user's choice from the Display tab;
+    // falls back to the monitor under the window when set to Auto or when the index is stale.
+    GLFWmonitor* targetMonitor()
+    {
+        int count = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&count);
+        if (m_displayMonitor >= 0 && m_displayMonitor < count)
+            return monitors[m_displayMonitor];
+        return monitorForWindow();
+    }
+
     // Schedule the three control panels to stack near the top-left of the given monitor's work area.
     void layoutPanelsOn(GLFWmonitor* monitor)
     {
@@ -535,7 +688,7 @@ private:
         if (!win)
             return;
 
-        GLFWmonitor* monitor = monitorForWindow();
+        GLFWmonitor* monitor = m_fullscreen ? monitorForWindow() : targetMonitor();
 
         if (!m_fullscreen) {
             glfwGetWindowPos(win, &m_savedX, &m_savedY);
@@ -644,11 +797,73 @@ private:
         ImGui::Text("Elapsed : %.3f s", tc->elapsed());
     }
 
+    // Display tab: choose the fullscreen output screen and toggle performance mode. In
+    // performance mode the main window goes borderless-fullscreen on the selected screen and
+    // the control panels move to the other screen.
+    void drawDisplayContent()
+    {
+        int count = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&count);
+
+        // Keep a stale selection from persisting past a monitor unplug.
+        if (m_displayMonitor >= count)
+            m_displayMonitor = -1;
+
+        const char* preview =
+            (m_displayMonitor >= 0 && m_displayMonitor < count)
+                ? glfwGetMonitorName(monitors[m_displayMonitor])
+                : "Auto (window's screen)";
+
+        ImGui::SetNextItemWidth(240.0f);
+        if (ImGui::BeginCombo("Output screen", preview)) {
+            if (ImGui::Selectable("Auto (window's screen)", m_displayMonitor < 0))
+                m_displayMonitor = -1;
+            if (m_displayMonitor < 0)
+                ImGui::SetItemDefaultFocus();
+
+            for (int i = 0; i < count; ++i) {
+                int mx = 0, my = 0;
+                glfwGetMonitorPos(monitors[i], &mx, &my);
+                const GLFWvidmode* mode = glfwGetVideoMode(monitors[i]);
+                const int mw = mode ? mode->width : 0;
+                const int mh = mode ? mode->height : 0;
+
+                char label[128];
+                std::snprintf(label, sizeof(label), "%d: %s (%dx%d @ %d,%d)", i,
+                              glfwGetMonitorName(monitors[i]), mw, mh, mx, my);
+
+                const bool selected = i == m_displayMonitor;
+                if (ImGui::Selectable(label, selected))
+                    m_displayMonitor = i;
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        if (count < 2)
+            ImGui::TextColored({1.0f, 0.8f, 0.4f, 1.0f},
+                               "Only one screen detected; controls stay on the fullscreen output.");
+
+        ImGui::Separator();
+
+        bool performance = m_fullscreen;
+        if (ImGui::Checkbox("Performance mode (fullscreen)", &performance))
+            toggleFullscreen();
+        ImGui::SameLine();
+        ImGui::TextDisabled("(F11)");
+
+        ImGui::TextWrapped("Fullscreens the render window on the selected screen and moves these "
+                           "control panels to the other screen.");
+    }
+
     // MIDI tab: input-port selection and status, followed by the learn/bindings table.
     void drawMidiContent()
     {
         if (!m_midi) {
             ImGui::TextUnformatted("MIDI not initialized.");
+            if (!m_midiStatus.empty())
+                ImGui::TextColored({1.0f, 0.8f, 0.4f, 1.0f}, "%s", m_midiStatus.c_str());
         } else {
             const auto ports = m_midi->listPorts();
             if (ports.empty()) {
@@ -664,7 +879,7 @@ private:
                     for (size_t i = 0; i < ports.size(); ++i) {
                         const bool selected = static_cast<int>(i) == m_midiPort;
                         if (ImGui::Selectable(ports[i].c_str(), selected)) {
-                            if (m_midi->openPort(static_cast<unsigned int>(i)))
+                            if (openMidiPortGuarded(static_cast<unsigned int>(i)))
                                 m_midiPort = static_cast<int>(i);
                         }
                         if (selected)
@@ -673,7 +888,13 @@ private:
                     ImGui::EndCombo();
                 }
 
-                ImGui::Text("Status: %s", m_midi->isOpen() ? "connected" : "closed");
+                // Don't read isOpen() once poisoned: a stuck openPort() worker may still be
+                // writing the controller's state on its own thread.
+                const char* status = m_midiOpenInProgress ? "not responding"
+                                                           : (m_midi->isOpen() ? "connected" : "closed");
+                ImGui::Text("Status: %s", status);
+                if (!m_midiStatus.empty())
+                    ImGui::TextColored({1.0f, 0.8f, 0.4f, 1.0f}, "%s", m_midiStatus.c_str());
             }
         }
 
@@ -685,7 +906,9 @@ private:
     void drawActiveSceneContent()
     {
         const size_t activeIndex = m_timeline ? m_timeline->activeSceneIndex() : SceneTimeline::npos;
-        if (activeIndex == 2 && m_attractorScene)
+        if (activeIndex == 3 && m_latticeScene)
+            m_latticeScene->drawControlsContent();
+        else if (activeIndex == 2 && m_attractorScene)
             m_attractorScene->drawControlsContent();
         else if (activeIndex == 1 && m_tunnelScene)
             m_tunnelScene->drawControlsContent();
@@ -780,6 +1003,10 @@ private:
             if (const auto it = json.find(m_attractorScene->name()); it != json.end())
                 m_attractorScene->fromJson(*it);
         }
+        if (m_latticeScene) {
+            if (const auto it = json.find(m_latticeScene->name()); it != json.end())
+                m_latticeScene->fromJson(*it);
+        }
     }
 
     void saveSceneSettings()
@@ -802,6 +1029,8 @@ private:
             json[m_tunnelScene->name()] = m_tunnelScene->toJson();
         if (m_attractorScene)
             json[m_attractorScene->name()] = m_attractorScene->toJson();
+        if (m_latticeScene)
+            json[m_latticeScene->name()] = m_latticeScene->toJson();
 
         std::ofstream out(m_settingsPath);
         if (out)
