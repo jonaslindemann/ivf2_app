@@ -44,7 +44,7 @@ constexpr int k_maxStepsPerFrame = 2000;
 
 using namespace ivf;
 
-AttractorTimelineScene::AttractorTimelineScene() : TimelineScene("Lorenz Drift", 50.0)
+AttractorTimelineScene::AttractorTimelineScene() : CreativeScene("Lorenz Drift", 50.0)
 {
     setupSceneGraph();
 
@@ -187,7 +187,7 @@ void AttractorTimelineScene::setAudioInput(float level, bool playing)
     m_audioInputPlaying = playing;
 }
 
-void AttractorTimelineScene::drawControlsContent()
+void AttractorTimelineScene::onDrawControlsContent()
 {
     ImGui::Text("Alive : %d / %d", m_ps->aliveCount(), m_ps->maxParticles());
     ImGui::Text("Time  : %.2f s", TimeController::instance()->elapsed());

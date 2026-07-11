@@ -4,6 +4,8 @@
 #define NOMINMAX
 #endif
 
+#include "creative_scene.h"
+
 #include <ivf/gl.h>
 #include <ivf/nodes.h>
 #include <ivf/scene_timeline.h>
@@ -27,7 +29,7 @@
  * walker speed, trail brightness, and glow, matching the bloom + depth-fog look of the other
  * scenes.
  */
-class LatticeTimelineScene : public ivf::TimelineScene {
+class LatticeTimelineScene : public CreativeScene {
 private:
     struct Walker {
         int current{0};   // node the walker is leaving
@@ -111,10 +113,10 @@ public:
 
     static std::shared_ptr<LatticeTimelineScene> create();
 
-    void drawControlsContent();
-    void setAudioInput(float level, bool playing);
-    nlohmann::json toJson() const;
-    void fromJson(const nlohmann::json& json);
+    void onDrawControlsContent() override;
+    void setAudioInput(float level, bool playing) override;
+    nlohmann::json toJson() const override;
+    void fromJson(const nlohmann::json& json) override;
 
 protected:
     void setupProperties() override;

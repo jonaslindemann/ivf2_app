@@ -36,7 +36,7 @@ glm::vec3 catmullRom(const glm::vec3& p0, const glm::vec3& p1,
 using namespace ivf;
 
 ParticleTimelineScene::ParticleTimelineScene()
-    : TimelineScene("Flow Field", 60.0)
+    : CreativeScene("Flow Field", 60.0)
 {
     setupSceneGraph();
     buildCameraPath();
@@ -51,7 +51,7 @@ std::shared_ptr<ParticleTimelineScene> ParticleTimelineScene::create()
     return std::make_shared<ParticleTimelineScene>();
 }
 
-void ParticleTimelineScene::drawControlsContent()
+void ParticleTimelineScene::onDrawControlsContent()
 {
     bool changed = false;
     changed |= ImGui::SliderFloat("Scale", &m_scale, 0.05f, 2.0f);

@@ -39,3 +39,8 @@
 *.json
 /build-debug/.vs
 /build-debug
+
+# Assets are copied next to the executable at build time from the root assets/ directory
+/bin/assets
+/bin/Debug/assets
+/bin/Release/assets

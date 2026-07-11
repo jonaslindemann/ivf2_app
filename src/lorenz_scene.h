@@ -4,6 +4,8 @@
 #define NOMINMAX
 #endif
 
+#include "creative_scene.h"
+
 #include <ivf/gl.h>
 #include <ivf/nodes.h>
 #include <ivf/scene_timeline.h>
@@ -23,7 +25,7 @@
  * fades behind the head. This reuses the same ParticleSystem + bloom look as the
  * other scenes. Audio energy drives the integration speed, sprite size, and color.
  */
-class AttractorTimelineScene : public ivf::TimelineScene {
+class AttractorTimelineScene : public CreativeScene {
 private:
     ivf::CompositeNodePtr m_root;
     ivf::ParticleSystemPtr m_ps;
@@ -78,10 +80,10 @@ public:
 
     static std::shared_ptr<AttractorTimelineScene> create();
 
-    void drawControlsContent();
-    void setAudioInput(float level, bool playing);
-    nlohmann::json toJson() const;
-    void fromJson(const nlohmann::json& json);
+    void onDrawControlsContent() override;
+    void setAudioInput(float level, bool playing) override;
+    nlohmann::json toJson() const override;
+    void fromJson(const nlohmann::json& json) override;
 
 protected:
     void setupProperties() override;

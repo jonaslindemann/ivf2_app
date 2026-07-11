@@ -1,13 +1,6 @@
 {
     "bindings": [
         {
-            "cc": 15,
-            "channel": 0,
-            "component": -1,
-            "property": "Strength",
-            "target": "scene:Flow Field"
-        },
-        {
             "cc": 16,
             "channel": 0,
             "component": -1,
@@ -22,17 +15,31 @@
             "target": "scene:Flow Field"
         },
         {
-            "cc": 18,
+            "cc": 29,
+            "channel": 0,
+            "component": -1,
+            "property": "Scale",
+            "target": "scene:Flow Field"
+        },
+        {
+            "cc": 21,
+            "channel": 0,
+            "component": -1,
+            "property": "Strength",
+            "target": "scene:Flow Field"
+        },
+        {
+            "cc": 13,
             "channel": 0,
             "component": -1,
             "property": "Orbit radius",
             "target": "scene:Flow Field"
         },
         {
-            "cc": 14,
+            "cc": 5,
             "channel": 0,
             "component": -1,
-            "property": "Scale",
+            "property": "Sensitivity",
             "target": "scene:Flow Field"
         }
     ]

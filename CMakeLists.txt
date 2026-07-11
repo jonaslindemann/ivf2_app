@@ -48,10 +48,13 @@ else()
     set(APP_TYPE "")
 endif()
 
-add_executable(ivf_app ${APP_TYPE}
+add_executable(flow_field_demo ${APP_TYPE}
     src/audio_player.cpp
     src/audio_player.h
-    src/ivf_app.cpp
+    src/creative_scene.h
+    src/creative_app.cpp
+    src/creative_app.h
+    src/flow_field_demo.cpp
     src/particle_scene.cpp
     src/particle_scene.h
     src/tunnel_scene.cpp
@@ -68,11 +71,11 @@ add_executable(ivf_app ${APP_TYPE}
     src/scene_controls_window.h
 )
 
-target_include_directories(ivf_app PRIVATE
+target_include_directories(flow_field_demo PRIVATE
     "${MINIAUDIO_INCLUDE_DIRS}"
 )
 
-target_link_libraries(ivf_app PRIVATE
+target_link_libraries(flow_field_demo PRIVATE
     ivf2::ivf2
     nlohmann_json::nlohmann_json
     assimp::assimp
@@ -80,16 +83,20 @@ target_link_libraries(ivf_app PRIVATE
 )
 
 if(MSVC)
-    target_link_options(ivf_app PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+    target_link_options(flow_field_demo PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
 endif()
 
-set(PARTICLE_ASSET "${IVF2_ROOT}/bin/assets/particle.jpeg")
-if(EXISTS "${PARTICLE_ASSET}")
-    add_custom_command(TARGET ivf_app POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:ivf_app>/assets"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${PARTICLE_ASSET}" "$<TARGET_FILE_DIR:ivf_app>/assets/particle.jpeg"
+# Assets live once at the repository root and are copied next to the executable at build time.
+# $<TARGET_FILE_DIR:...> resolves to bin/Release or bin/Debug for multi-config generators (MSVC)
+# and to bin for single-config generators (Makefiles/Ninja on macOS/Linux).
+set(ASSETS_DIR "${PROJECT_SOURCE_DIR}/assets")
+if(EXISTS "${ASSETS_DIR}")
+    add_custom_command(TARGET flow_field_demo POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                "${ASSETS_DIR}" "$<TARGET_FILE_DIR:flow_field_demo>/assets"
+        COMMENT "Copying assets to $<TARGET_FILE_DIR:flow_field_demo>/assets"
         VERBATIM
     )
 else()
-    message(WARNING "Particle asset not found at '${PARTICLE_ASSET}'. The example will run without its particle texture.")
+    message(WARNING "Assets directory not found at '${ASSETS_DIR}'. The example will run without its textures/audio.")
 endif()

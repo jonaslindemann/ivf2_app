@@ -2,13 +2,13 @@
     "Flow Field": {
         "audioEndSizeBoost": 0.2150000035762787,
         "audioImpact": 0.44200000166893005,
-        "audioSensitivity": 1.5,
+        "audioSensitivity": 0.948031485080719,
         "audioStartSizeBoost": 0.6830000281333923,
         "autoCamera": true,
         "baseEmitRate": 427.0429992675781,
         "cameraHeight": 4.480000019073486,
         "cameraOrbitSpeed": 0.1940000057220459,
-        "cameraRadius": 20.618000030517578,
+        "cameraRadius": 16.535432815551758,
         "cameraUndulation": 1.2760000228881836,
         "cameraUndulationSpeed": 0.18000000715255737,
         "depthFog": false,
@@ -35,7 +35,7 @@
         "octaves": 4,
         "pathCamera": false,
         "pathSpeed": 0.014999999664723873,
-        "scale": 0.07400000095367432,
+        "scale": 0.05000000074505806,
         "startColor": [
             0.2112210988998413,
             0.22684097290039063,
@@ -49,7 +49,7 @@
             0.3499999940395355
         ],
         "startSize": 0.9010000228881836,
-        "strength": 1.7109999656677246,
+        "strength": 0.8015748262405396,
         "timeScale": 0.0729999989271164
     },
     "Lattice Walk": {

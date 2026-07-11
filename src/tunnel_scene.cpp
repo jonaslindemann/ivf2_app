@@ -60,7 +60,7 @@ float wrapPositive(float value, float range)
 using namespace ivf;
 
 TunnelTimelineScene::TunnelTimelineScene()
-    : TimelineScene("Pulse Corridor", 45.0)
+    : CreativeScene("Pulse Corridor", 45.0)
 {
     setupSceneGraph();
 
@@ -74,7 +74,7 @@ std::shared_ptr<TunnelTimelineScene> TunnelTimelineScene::create()
     return std::make_shared<TunnelTimelineScene>();
 }
 
-void TunnelTimelineScene::drawControlsContent()
+void TunnelTimelineScene::onDrawControlsContent()
 {
     ImGui::Text("Alive : %d / %d", m_ps->aliveCount(), m_ps->maxParticles());
     ImGui::Text("Time  : %.2f s", TimeController::instance()->elapsed());

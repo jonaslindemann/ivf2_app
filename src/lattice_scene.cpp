@@ -57,7 +57,7 @@ int edgeSampleCount(float length, float thickness)
 
 using namespace ivf;
 
-LatticeTimelineScene::LatticeTimelineScene() : TimelineScene("Lattice Walk", 50.0), m_rng(m_seed)
+LatticeTimelineScene::LatticeTimelineScene() : CreativeScene("Lattice Walk", 50.0), m_rng(m_seed)
 {
     setupSceneGraph();
 
@@ -454,7 +454,7 @@ void LatticeTimelineScene::setAudioInput(float level, bool playing)
     m_audioInputPlaying = playing;
 }
 
-void LatticeTimelineScene::drawControlsContent()
+void LatticeTimelineScene::onDrawControlsContent()
 {
     ImGui::Text("Nodes : %d   Connected : %d", static_cast<int>(m_nodePos.size()),
                 static_cast<int>(m_activeNodes.size()));

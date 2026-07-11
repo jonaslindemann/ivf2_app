@@ -4,6 +4,8 @@
 #define NOMINMAX
 #endif
 
+#include "creative_scene.h"
+
 #include <ivf/gl.h>
 #include <ivf/nodes.h>
 #include <ivf/scene_timeline.h>
@@ -14,7 +16,7 @@
 #include <memory>
 #include <vector>
 
-class ParticleTimelineScene : public ivf::TimelineScene {
+class ParticleTimelineScene : public CreativeScene {
 private:
     ivf::CompositeNodePtr m_root;
     ivf::ParticleSystemPtr m_ps;
@@ -66,10 +68,10 @@ public:
 
     static std::shared_ptr<ParticleTimelineScene> create();
 
-    void drawControlsContent();
-    void setAudioInput(float level, bool playing);
-    nlohmann::json toJson() const;
-    void fromJson(const nlohmann::json& json);
+    void onDrawControlsContent() override;
+    void setAudioInput(float level, bool playing) override;
+    nlohmann::json toJson() const override;
+    void fromJson(const nlohmann::json& json) override;
 
 protected:
     void setupProperties() override;
