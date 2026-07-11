@@ -28,17 +28,24 @@
 #include <ivf/halftone_effect.h>
 
 #include <imgui.h>
+#include <imgui_internal.h> // DockBuilder API for the default merged-panel layout
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <thread>
 
 using namespace ivf;
 using namespace ivfui;
+
+// Stable id for the dock node that hosts the three merged control panels. A fixed literal
+// (rather than a scope-derived GetID) keeps the id constant across runs, so once the layout is
+// saved to imgui.ini it is recognized and the user's own arrangement is respected thereafter.
+static constexpr ImGuiID k_controlsDockId = 0xCD00CD02u;
 
 CreativeApplicationWindow::CreativeApplicationWindow(int width, int height, const std::string& title)
     : GLFWSceneWindow(width, height, title)
@@ -459,11 +466,61 @@ void CreativeApplicationWindow::onClose()
 // still begun/ended by the framework, just with nothing drawn.
 void CreativeApplicationWindow::doDrawUi()
 {
-    // Relocate control panels for performance mode. Runs inside the ImGui frame so
-    // SetWindowPos-by-name takes effect (and viewports move the OS window) this frame.
+    // Merge the transport (Control Center), Scene, and Effect Inspector panels into one tabbed
+    // dock group on first use. Because the Scene panel is a single persistent window whose body
+    // is swapped per active scene, this dock slot survives scene changes (and restarts, via
+    // imgui.ini). Guarded by the node's existence so a saved layout - including the user's own
+    // arrangement - always wins.
+    if (!m_dockInitDone) {
+        m_dockInitDone = true;
+        if (ImGui::DockBuilderGetNode(k_controlsDockId) == nullptr) {
+            ImGui::DockBuilderAddNode(k_controlsDockId, ImGuiDockNodeFlags_None);
+            ImGui::DockBuilderSetNodePos(k_controlsDockId, ImVec2(20.0f, 40.0f));
+            ImGui::DockBuilderSetNodeSize(k_controlsDockId, ImVec2(400.0f, 720.0f));
+            ImGui::DockBuilderDockWindow("Control Center", k_controlsDockId);
+            ImGui::DockBuilderDockWindow("Scene", k_controlsDockId);
+            ImGui::DockBuilderDockWindow("Effect Inspector", k_controlsDockId);
+            ImGui::DockBuilderFinish(k_controlsDockId);
+            m_dockOrderFrames = 4; // enforce the tab order + focus once the windows exist
+        }
+    }
+
+    // The tab order in a dock node follows window submission order, and the base class submits
+    // Effect Inspector before this app's Control Center / Scene. Pin the desired order explicitly
+    // (Control Center, Scene, Effect Inspector) by reordering the node's tab bar, and focus
+    // Control Center. Runs only for the few frames after a fresh build, so any tab reordering the
+    // user does afterwards is preserved (and persisted to imgui.ini).
+    if (m_dockOrderFrames > 0) {
+        auto rank = [](const ImGuiWindow* w) -> int {
+            if (!w || !w->Name)
+                return 99;
+            if (std::strcmp(w->Name, "Control Center") == 0) return 0;
+            if (std::strcmp(w->Name, "Scene") == 0) return 1;
+            if (std::strcmp(w->Name, "Effect Inspector") == 0) return 2;
+            return 98;
+        };
+        if (ImGuiDockNode* node = ImGui::DockBuilderGetNode(k_controlsDockId); node && node->TabBar) {
+            ImVector<ImGuiTabItem>& tabs = node->TabBar->Tabs;
+            for (int i = 1; i < tabs.Size; ++i) { // stable insertion sort by desired rank
+                ImGuiTabItem key = tabs[i];
+                int j = i - 1;
+                while (j >= 0 && rank(tabs[j].Window) > rank(key.Window)) {
+                    tabs[j + 1] = tabs[j];
+                    --j;
+                }
+                tabs[j + 1] = key;
+            }
+        }
+        if (m_dockOrderFrames == 1)
+            ImGui::SetWindowFocus("Control Center");
+        --m_dockOrderFrames;
+    }
+
+    // Performance mode: move the merged control dock to the other monitor. Runs inside the ImGui
+    // frame so the node's platform window relocates this frame.
     if (m_pendingLayoutFrames > 0) {
-        for (int i = 0; i < 3; ++i)
-            ImGui::SetWindowPos(k_panelNames[i], m_panelTargets[i], ImGuiCond_Always);
+        if (ImGui::DockBuilderGetNode(k_controlsDockId) != nullptr)
+            ImGui::DockBuilderSetNodePos(k_controlsDockId, m_panelTarget);
         --m_pendingLayoutFrames;
     }
 
@@ -521,7 +578,7 @@ GLFWmonitor* CreativeApplicationWindow::targetMonitor()
     return monitorForWindow();
 }
 
-// Schedule the three control panels to stack near the top-left of the given monitor's work area.
+// Schedule the merged control dock to move near the top-left of the given monitor's work area.
 void CreativeApplicationWindow::layoutPanelsOn(GLFWmonitor* monitor)
 {
     if (!monitor)
@@ -530,8 +587,7 @@ void CreativeApplicationWindow::layoutPanelsOn(GLFWmonitor* monitor)
     int wax = 0, way = 0, waw = 0, wah = 0;
     glfwGetMonitorWorkarea(monitor, &wax, &way, &waw, &wah);
 
-    for (int i = 0; i < 3; ++i)
-        m_panelTargets[i] = ImVec2(static_cast<float>(wax + 20), static_cast<float>(way + 20 + i * 360));
+    m_panelTarget = ImVec2(static_cast<float>(wax + 20), static_cast<float>(way + 20));
     m_pendingLayoutFrames = 2;
 }
 

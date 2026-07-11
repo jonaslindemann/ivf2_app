@@ -133,8 +133,9 @@ private:
     int m_displayMonitor{-1}; // fullscreen output monitor index; -1 = auto (monitor under window)
 
     int m_pendingLayoutFrames{0};
-    ImVec2 m_panelTargets[3];
-    static constexpr const char* k_panelNames[3] = {"Control Center", "Scene", "Effect Inspector"};
+    ImVec2 m_panelTarget{};    // where to move the merged control dock in performance mode
+    bool m_dockInitDone{false}; // default merged-panel dock layout applied once
+    int m_dockOrderFrames{0};   // frames left to enforce tab order + focus after a fresh build
 
     // --- MIDI helpers -----------------------------------------------------------------------
     void setupMidi();
